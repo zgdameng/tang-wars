@@ -1,0 +1,12 @@
+[
+  {"id":"hedong","name":"河东","color":16727888},
+  {"id":"hebei","name":"河北","color":16744448},
+  {"id":"henan","name":"河南","color":65535},
+  {"id":"guanzhong","name":"关中","color":16763904},
+  {"id":"huainan","name":"淮南","color":65280},
+  {"id":"xichuan","name":"西川","color":16733696},
+  {"id":"zhenhai","name":"镇海","color":16711918},
+  {"id":"jingnan","name":"荆南","color":8388863},
+  {"id":"lingnan","name":"岭南","color":16711830},
+  {"id":"jiangnan","name":"江南","color":65450}
+]

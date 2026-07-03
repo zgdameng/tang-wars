@@ -1,0 +1,11 @@
+[
+  {"id":"li-keyong","name":"李克用","color":16711680,"gold":8000,"prestige":600,"homeCity":"taiyuan","aiDifficulty":4,"isHuman":true},
+  {"id":"zhu-wen","name":"朱温","color":255,"gold":10000,"prestige":500,"homeCity":"bianzhou","aiDifficulty":4},
+  {"id":"li-maozhen","name":"李茂贞","color":16776960,"gold":5000,"prestige":400,"homeCity":"fengxiang","aiDifficulty":3},
+  {"id":"yang-xingmi","name":"杨行密","color":65280,"gold":9000,"prestige":450,"homeCity":"yangzhou","aiDifficulty":3},
+  {"id":"wang-jian","name":"王建","color":16753920,"gold":4000,"prestige":350,"homeCity":"chengdu","aiDifficulty":2},
+  {"id":"qian-liu","name":"钱镠","color":16711935,"gold":6000,"prestige":350,"homeCity":"hangzhou","aiDifficulty":2},
+  {"id":"ind-minor-1","name":"卢龙军","color":8421504,"gold":2000,"prestige":200,"homeCity":"youzhou","aiDifficulty":1},
+  {"id":"ind-minor-2","name":"成德军","color":12632256,"gold":2000,"prestige":200,"homeCity":"zhenzhou","aiDifficulty":1},
+  {"id":"ind-minor-3","name":"魏博军","color":12632256,"gold":3000,"prestige":250,"homeCity":"weizhou","aiDifficulty":1}
+]

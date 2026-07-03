@@ -1,0 +1,12 @@
+[
+  {"id":"li-keyong-gen","name":"李克用","factionId":"li-keyong","leadership":90,"might":88,"intelligence":70,"politics":55,"charisma":85,"loyalty":100,"skill":{"name":"鸦军冲锋","cooldown":30,"description":"骑兵攻击力+30%，持续10秒"}},
+  {"id":"li-cunxiao","name":"李存孝","factionId":"li-keyong","leadership":78,"might":98,"intelligence":40,"politics":25,"charisma":50,"loyalty":90,"skill":{"name":"万夫不当","cooldown":60,"description":"自身部队无敌5秒"}},
+  {"id":"zhou-dewei","name":"周德威","factionId":"li-keyong","leadership":85,"might":82,"intelligence":72,"politics":60,"charisma":70,"loyalty":85},
+  {"id":"zhu-wen-gen","name":"朱温","factionId":"zhu-wen","leadership":88,"might":75,"intelligence":85,"politics":70,"charisma":60,"loyalty":100,"skill":{"name":"汴军铁壁","cooldown":40,"description":"全军防御+25%，持续12秒"}},
+  {"id":"jing-xiang","name":"敬翔","factionId":"zhu-wen","leadership":30,"might":15,"intelligence":92,"politics":88,"charisma":55,"loyalty":85},
+  {"id":"wang-yanzhang","name":"王彦章","factionId":"zhu-wen","leadership":72,"might":95,"intelligence":50,"politics":30,"charisma":55,"loyalty":80,"skill":{"name":"铁枪突阵","cooldown":45,"description":"对单体敌将造成大量伤害"}},
+  {"id":"li-maozhen-gen","name":"李茂贞","factionId":"li-maozhen","leadership":80,"might":70,"intelligence":65,"politics":60,"charisma":55,"loyalty":100},
+  {"id":"yang-xingmi-gen","name":"杨行密","factionId":"yang-xingmi","leadership":82,"might":72,"intelligence":75,"politics":78,"charisma":80,"loyalty":100,"skill":{"name":"淮南水师","cooldown":35,"description":"全军移动速度+20%，持续15秒"}},
+  {"id":"wang-jian-gen","name":"王建","factionId":"wang-jian","leadership":78,"might":65,"intelligence":70,"politics":82,"charisma":70,"loyalty":100},
+  {"id":"qian-liu-gen","name":"钱镠","factionId":"qian-liu","leadership":75,"might":60,"intelligence":80,"politics":85,"charisma":75,"loyalty":100}
+]
