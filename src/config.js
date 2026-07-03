@@ -33,6 +33,9 @@ export const CONFIG = {
   // 存档
   SAVE_SLOTS: 5,
 
+  // 城池
+  NEW_OWNER_STABILITY: 50,
+
   // AI
   AI_ECONOMY_EFFICIENCY: [0.6, 0.8, 1.0, 1.0, 1.0]  // 按难度索引
 };

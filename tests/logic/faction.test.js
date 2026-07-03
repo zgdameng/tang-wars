@@ -14,10 +14,11 @@ describe('createFaction', () => {
 });
 
 describe('gold operations', () => {
-  it('should not allow negative gold', () => {
-    const f = createFaction({ id: 'test', name: '测试', color: 0xffffff });
-    const result = spendGold(f, 99999);
-    expect(result).toBeNull();
+  it('should spend gold successfully when enough gold', () => {
+    const f = createFaction({ id: 'test', name: '测试', color: 0xffffff, gold: 1000 });
+    const result = spendGold(f, 300);
+    expect(result).not.toBeNull();
+    expect(f.gold).toBe(700);
   });
 
   it('should return null when cannot afford', () => {

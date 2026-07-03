@@ -16,7 +16,12 @@ import { CONFIG } from '../config.js';
  * @param {number} [opts.defense=0]
  * @param {number} [opts.stability=70] - 民心 (0-100)
  */
-export function createCity(opts) {
+export function createCity(opts = {}) {
+  if (opts.id == null) throw new Error('createCity: missing required field "id"');
+  if (opts.name == null) throw new Error('createCity: missing required field "name"');
+  if (opts.x == null) throw new Error('createCity: missing required field "x"');
+  if (opts.y == null) throw new Error('createCity: missing required field "y"');
+
   return {
     id: opts.id,
     name: opts.name,
@@ -57,7 +62,7 @@ export function getCityMaxGarrison(city) {
 
 export function setCityOwner(city, factionId) {
   city.owner = factionId;
-  city.stability = 50; // 易主后民心重置
+  city.stability = CONFIG.NEW_OWNER_STABILITY; // 易主后民心重置
   return city;
 }
 

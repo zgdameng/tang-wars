@@ -3,7 +3,10 @@
  * 属性范围 1-100，总值决定武将品质。
  */
 
-export function createGeneral(opts) {
+export function createGeneral(opts = {}) {
+  if (opts.id == null) throw new Error('createGeneral: missing required field "id"');
+  if (opts.name == null) throw new Error('createGeneral: missing required field "name"');
+
   return {
     id: opts.id,
     name: opts.name,

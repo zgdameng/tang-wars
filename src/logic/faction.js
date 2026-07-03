@@ -1,6 +1,10 @@
 import { CONFIG } from '../config.js';
 
-export function createFaction(opts) {
+export function createFaction(opts = {}) {
+  if (opts.id == null) throw new Error('createFaction: missing required field "id"');
+  if (opts.name == null) throw new Error('createFaction: missing required field "name"');
+  if (opts.color == null) throw new Error('createFaction: missing required field "color"');
+
   return {
     id: opts.id,
     name: opts.name,
@@ -41,6 +45,6 @@ export function getRelation(faction, otherId) {
 }
 
 export function addPrestige(faction, amount) {
-  faction.prestige = Math.min(CONFIG.PRESTIGE_MAX, faction.prestige + amount);
+  faction.prestige = Math.max(0, Math.min(CONFIG.PRESTIGE_MAX, faction.prestige + amount));
   return faction;
 }
