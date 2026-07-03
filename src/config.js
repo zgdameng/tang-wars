@@ -1,0 +1,38 @@
+// 游戏全局常量——所有模块从这里取数值，改一处全局生效
+
+export const CONFIG = {
+  // 地图
+  MAP_COLS: 30,
+  MAP_ROWS: 30,
+  TILE_WIDTH: 64,
+  TILE_HEIGHT: 32,
+
+  // 回合
+  TURN_MONTHS_PER_YEAR: 12,
+
+  // 经营
+  BASE_TAX_RATE: 0.3,
+  BASE_POP_GROWTH: 0.01,
+  BASE_FOOD_PER_POP: 1,
+  ARMY_UPKEEP_PER_UNIT: 2,
+
+  // 武将
+  BASE_LOYALTY: 80,
+  LOYALTY_REBEL_THRESHOLD: 30,
+
+  // 外交
+  RELATION_MIN: -100,
+  RELATION_MAX: 100,
+  PRESTIGE_MAX: 1000,
+
+  // 战斗
+  BATTLE_MAP_WIDTH: 800,
+  BATTLE_MAP_HEIGHT: 600,
+  MORALE_MAX: 100,
+
+  // 存档
+  SAVE_SLOTS: 5,
+
+  // AI
+  AI_ECONOMY_EFFICIENCY: [0.6, 0.8, 1.0, 1.0, 1.0]  // 按难度索引
+};
