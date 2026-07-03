@@ -34,13 +34,11 @@ export function addCity(state, opts) {
 
 export function addFaction(state, opts) {
   const faction = createFaction(opts);
+  const existingIds = Object.keys(state.factions);
   state.factions[faction.id] = faction;
-  // 与所有已有势力建立中立关系
-  for (const otherId of Object.keys(state.factions)) {
-    if (otherId !== faction.id) {
-      setRelation(faction, otherId, 0);
-      setRelation(state.factions[otherId], faction.id, 0);
-    }
+  for (const otherId of existingIds) {
+    setRelation(faction, otherId, 0);
+    setRelation(state.factions[otherId], faction.id, 0);
   }
   return faction;
 }
@@ -92,4 +90,13 @@ export function endTurn(state) {
   state.phase = 'economy';
   state.turnLog = [];
   return state;
+}
+
+export function getEntities(state) {
+  return {
+    cities: state.cities,
+    factions: state.factions,
+    generals: state.generals,
+    armies: state.armies
+  };
 }

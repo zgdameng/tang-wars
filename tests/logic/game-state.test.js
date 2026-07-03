@@ -3,7 +3,7 @@ import {
   createGameState, addCity, addFaction, addGeneral,
   getCityById, getFactionById, getGeneralById,
   getPlayerFaction, getPlayerCities, getAllFactions,
-  getFactionCities, endTurn
+  getFactionCities, endTurn, getEntities
 } from '../../src/logic/game-state.js';
 
 describe('createGameState', () => {
@@ -119,5 +119,22 @@ describe('endTurn', () => {
     expect(state.turn).toBe(2);
     expect(state.phase).toBe('economy');
     expect(state.turnLog).toEqual([]);
+  });
+});
+
+describe('getEntities', () => {
+  it('should return all entities from state', () => {
+    const state = createGameState();
+    addFaction(state, { id: 'f1', name: '势力1', color: 0xff0000 });
+    addCity(state, { id: 'c1', name: '城1', x: 0, y: 0, owner: 'f1' });
+    addGeneral(state, { id: 'g1', name: '武将1', factionId: 'f1' });
+    const entities = getEntities(state);
+    expect(entities.cities).toBe(state.cities);
+    expect(entities.factions).toBe(state.factions);
+    expect(entities.generals).toBe(state.generals);
+    expect(entities.armies).toBe(state.armies);
+    expect(Object.keys(entities.cities)).toHaveLength(1);
+    expect(Object.keys(entities.factions)).toHaveLength(1);
+    expect(Object.keys(entities.generals)).toHaveLength(1);
   });
 });
