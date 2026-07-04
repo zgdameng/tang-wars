@@ -115,8 +115,12 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头居中
-    this.cameras.main.centerOn(MAP_W / 2, MAP_H / 2);
+    // 镜头居中——Phaser 的 centerOn 不管缩放，得手动算
+    const cam = this.cameras.main;
+    cam.setScroll(
+      MAP_W / 2 - cam.width / (2 * cam.zoom),
+      MAP_H / 2 - cam.height / (2 * cam.zoom)
+    );
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
