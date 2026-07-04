@@ -17,7 +17,7 @@ export function loadGameData(state) {
   for (const f of factionsData) {
     addFaction(state, f);
     // 标记玩家势力
-    if (f.isHuman) {
+    if (f.isHuman && state.playerFactionId === null) {
       state.playerFactionId = f.id;
     }
   }

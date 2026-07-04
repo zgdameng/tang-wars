@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { showFactionSelect, hideFactionSelect } from '../ui/faction-select.js';
+import { showLoadPanel, hideSavePanel } from '../ui/save-panel.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -23,15 +25,25 @@ export class MenuScene extends Phaser.Scene {
 
     // 三个按钮
     this.createButton(w / 2, 320, '新 游 戏', () => {
-      this.scene.start('MapScene');
+      showFactionSelect((chosenId) => {
+        this.scene.start('MapScene', { playerFactionId: chosenId });
+      });
     });
 
     this.createButton(w / 2, 400, '读 取 存 档', () => {
-      this.showNotice('存档功能尚未开放');
+      showLoadPanel((loadedState) => {
+        this.scene.start('MapScene', { savedGame: loadedState });
+      });
     });
 
     this.createButton(w / 2, 480, '游 戏 说 明', () => {
       this.showNotice('唐末五代，天下大乱。选择势力，征战天下，一统江山。');
+    });
+
+    // 切走场景时清理 DOM 面板
+    this.events.on('shutdown', () => {
+      hideFactionSelect();
+      hideSavePanel();
     });
   }
 

@@ -60,22 +60,40 @@ export function createCityMarkers(scene, cities, factions) {
 
 /**
  * 每次镜头移动后调用，更新所有标签的屏幕位置。
- * 必须在 Phaser 场景的 update() 或相机事件中调用。
+ * 必须在 Phaser 场景的 postrender 事件或 update() 中调用。
+ *
+ * 原理：不自己算坐标，而是用 Phaser 内置的 getWorldPoint 反推。
+ * 这样保证 DOM 标签和 Phaser 画出来的东西永远对齐。
  *
  * @param {Phaser.Cameras.Scene2D.Camera} camera - scene.cameras.main
  */
 export function updateCityLabelPositions(camera) {
   const canvas = document.querySelector('canvas');
-  if (!canvas) return;
+  if (!canvas || markers.length === 0) return;
   const rect = canvas.getBoundingClientRect();
 
-  for (const m of markers) {
-    // 世界坐标 → 屏幕坐标：worldXY * zoom + scroll offset
-    const sx = (m.worldX + camera.scrollX) * camera.zoom;
-    const sy = (m.worldY + camera.scrollY) * camera.zoom;
+  // 用 Phaser 自己的坐标转换：取屏幕 (0,0) 和 (w,h) 在世界里的位置
+  const tl = { x: 0, y: 0 };
+  const br = { x: 0, y: 0 };
+  camera.getWorldPoint(0, 0, tl);
+  camera.getWorldPoint(camera.width, camera.height, br);
 
-    m.el.style.left = (rect.left + sx + rect.width / 2) + 'px';
-    m.el.style.top = (rect.top + sy + rect.height / 2) + 'px';
+  const worldW = br.x - tl.x;  // 屏幕宽度对应多少世界单位
+  const worldH = br.y - tl.y;  // 屏幕高度对应多少世界单位
+  if (worldW === 0 || worldH === 0) return;
+
+  // 画布内部分辨率 vs CSS 显示尺寸的比例（Phaser Scale.FIT 会缩放画布）
+  const scaleX = rect.width / camera.width;
+  const scaleY = rect.height / camera.height;
+
+  for (const m of markers) {
+    // 标签在世界中的位置，占屏幕宽高的比例
+    const fx = (m.worldX - tl.x) / worldW;  // 0=左 1=右
+    const fy = (m.worldY - tl.y) / worldH;  // 0=上 1=下
+
+    // 比例 × 屏幕像素 = 最终 CSS 位置
+    m.el.style.left = (rect.left + fx * rect.width) + 'px';
+    m.el.style.top = (rect.top + fy * rect.height) + 'px';
   }
 }
 

@@ -2,24 +2,36 @@ import Phaser from 'phaser';
 import { CONFIG } from '../config.js';
 import { createGameState } from '../logic/game-state.js';
 import { loadGameData } from '../logic/data-loader.js';
-import { drawIsoMap } from '../rendering/iso-renderer.js';
+import { drawIsoMap, gridToScreen } from '../rendering/iso-renderer.js';
 import { createCityMarkers, updateCityLabelPositions, destroyCityMarkers } from '../rendering/city-marker.js';
 import { showCityPanel, hideCityPanel } from './city-panel.js';
 import { executeTurn } from '../logic/turn.js';
 import { createTurnPanel, setTurnDisplay, removeTurnPanel } from '../ui/turn-panel.js';
 import { applyBattleResult } from '../logic/battle/battle-resolution.js';
+import { showDiplomacyPanel, hideDiplomacyPanel } from '../ui/diplomacy-panel.js';
+import { showSavePanel, hideSavePanel } from '../ui/save-panel.js';
+import { saveGame } from '../logic/save-load.js';
 
 export class MapScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MapScene' });
   }
 
-  create() {
+  create(data) {
     this.cameras.main.setBackgroundColor('#0a1628');
 
-    // 创建游戏状态，载入剧本数据
-    this.gameState = createGameState();
-    loadGameData(this.gameState);
+    // 三种启动方式：
+    // 1. data.savedGame  → 从存档恢复（直接用存档状态）
+    // 2. data.playerFactionId → 新游戏选了势力
+    // 3. 无参数 → 默认流程（向后兼容）
+    if (data && data.savedGame) {
+      this.gameState = data.savedGame;
+    } else {
+      this.gameState = createGameState({
+        playerFactionId: data && data.playerFactionId ? data.playerFactionId : undefined
+      });
+      loadGameData(this.gameState);
+    }
 
     // 生成地图数据（纯色菱形格，不同地形用不同绿色区分）
     const mapData = this.generateMapData();
@@ -45,14 +57,20 @@ export class MapScene extends Phaser.Scene {
     // 切走场景时清理所有 UI
     this.events.on('shutdown', () => {
       hideCityPanel();
+      hideDiplomacyPanel();
+      hideSavePanel();
       removeTurnPanel();
       destroyCityMarkers();
+      this.removeDomButton('diplomacy-btn');
+      this.removeDomButton('save-btn');
     });
 
     // 右下角回合面板
     createTurnPanel(() => {
       const result = executeTurn(this.gameState);
       setTurnDisplay(result.turn);
+      // 每回合结束自动存档
+      saveGame(this.gameState, 1, '自动存档');
 
       // 本回合有遭遇战 → 暂停地图，切到战场
       if (result.encounters && result.encounters.length > 0) {
@@ -62,6 +80,16 @@ export class MapScene extends Phaser.Scene {
           encounter: this.pendingEncounter
         });
       }
+    });
+
+    // 外交按钮（回合面板左边）
+    this.createDomButton('diplomacy-btn', '外交', 200, () => {
+      showDiplomacyPanel(this.gameState);
+    });
+
+    // 存档按钮（外交按钮左边）
+    this.createDomButton('save-btn', '存档', 280, () => {
+      showSavePanel(this.gameState);
     });
 
     // 从战场唤醒时接收战斗结果
@@ -131,6 +159,28 @@ export class MapScene extends Phaser.Scene {
       const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.4, 2.5);
       cam.setZoom(newZoom);
     });
+  }
+
+  // 创建一个右下角 DOM 按钮（在回合面板左侧排开）
+  createDomButton(id, label, rightOffset, onClick) {
+    const btn = document.createElement('div');
+    btn.id = id;
+    btn.style.cssText = `
+      position: fixed; bottom: 16px; right: ${rightOffset}px;
+      background: rgba(15,15,30,0.92); border: 1px solid #665522;
+      border-radius: 6px; padding: 8px 14px; color: #ccaa44;
+      font-family: 'Microsoft YaHei', sans-serif; z-index: 500;
+      cursor: pointer; font-size: 14px;
+    `;
+    btn.textContent = label;
+    btn.onclick = onClick;
+    document.body.appendChild(btn);
+  }
+
+  // 从页面移除一个 DOM 按钮
+  removeDomButton(id) {
+    const el = document.getElementById(id);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   // 镜头对准玩家首城
