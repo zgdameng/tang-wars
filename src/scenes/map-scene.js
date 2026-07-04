@@ -147,31 +147,16 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
     });
 
-    // DOM 原生滚轮缩放，缩放中心 = 鼠标指针位置
+    // 滚轮缩放——以鼠标指针为中心
     this._onWheel = (e) => {
       e.preventDefault();
       const ptr = this.input.activePointer;
-
-      // 缩放前指针下的世界坐标
-      const worldPre = { x: 0, y: 0 };
-      cam.getWorldPoint(ptr.x, ptr.y, worldPre);
-
+      const wx = cam.scrollX + (ptr.x - cam.width * 0.5) / cam.zoom;
+      const wy = cam.scrollY + (ptr.y - cam.height * 0.5) / cam.zoom;
       const newZoom = Phaser.Math.Clamp(cam.zoom - e.deltaY * 0.0008, 0.25, 2.5);
       cam.setZoom(newZoom);
-
-      // 缩放后同一屏幕位置对应的世界坐标
-      const worldPost = { x: 0, y: 0 };
-      cam.getWorldPoint(ptr.x, ptr.y, worldPost);
-
-      // 补偿偏移——让指针下仍是缩放前那个世界点
-      cam.scrollX += worldPre.x - worldPost.x;
-      cam.scrollY += worldPre.y - worldPost.y;
-
-      // 软边界
-      const vw = cam.width / cam.zoom;
-      const vh = cam.height / cam.zoom;
-      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, -vw * 0.3, MAP_W - vw * 0.7);
-      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, -vh * 0.3, MAP_H - vh * 0.7);
+      cam.scrollX = wx - (ptr.x - cam.width * 0.5) / newZoom;
+      cam.scrollY = wy - (ptr.y - cam.height * 0.5) / newZoom;
     };
     this.sys.game.canvas.addEventListener('wheel', this._onWheel, { passive: false });
   }
