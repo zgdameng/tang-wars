@@ -115,8 +115,9 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头对准玩家首城
-    this.focusOnPlayerCapital();
+    // 镜头居中（地图正中）
+    const cam = this.cameras.main;
+    cam.centerOn(MAP_W / 2, MAP_H / 2);
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
