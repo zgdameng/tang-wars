@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { showFactionSelect, hideFactionSelect } from '../ui/faction-select.js';
 import { showLoadPanel, hideSavePanel } from '../ui/save-panel.js';
+import { showHelpPanel, hideHelpPanel } from '../ui/help-panel.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -37,13 +38,14 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.createButton(w / 2, 480, '游 戏 说 明', () => {
-      this.showNotice('唐末五代，天下大乱。选择势力，征战天下，一统江山。');
+      showHelpPanel();
     });
 
     // 切走场景时清理 DOM 面板
     this.events.on('shutdown', () => {
       hideFactionSelect();
       hideSavePanel();
+      hideHelpPanel();
     });
   }
 
