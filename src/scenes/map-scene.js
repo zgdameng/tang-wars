@@ -115,12 +115,11 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头居中——Phaser 的 centerOn 不管缩放，得手动算
-    const cam = this.cameras.main;
-    cam.setScroll(
-      MAP_W / 2 - cam.width / (2 * cam.zoom),
-      MAP_H / 2 - cam.height / (2 * cam.zoom)
-    );
+    // 镜头居中——先设 bounds 允许负数，再直接赋 scrollX/Y
+    const margin = 2000;
+    this.cameras.main.setBounds(-margin, -margin, MAP_W + margin * 2, MAP_H + margin * 2);
+    this.cameras.main.scrollX = MAP_W / 2 - this.cameras.main.width / (2 * this.cameras.main.zoom);
+    this.cameras.main.scrollY = MAP_H / 2 - this.cameras.main.height / (2 * this.cameras.main.zoom);
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
@@ -135,7 +134,6 @@ export class MapScene extends Phaser.Scene {
   // 相机：限制在地图范围内，支持拖拽平移 + 滚轮缩放（聚焦鼠标位置）
   setupCamera() {
     const cam = this.cameras.main;
-
     cam.setBackgroundColor('#2a4a6a');
 
     // 初始缩放：让地图大约占满屏幕
@@ -145,16 +143,11 @@ export class MapScene extends Phaser.Scene {
     );
     cam.setZoom(Math.max(0.28, initZoom * 0.95));
 
-    // 按住左键拖拽（手动限制不超出地图边界太多）
+    // 按住左键拖拽
     this.input.on('pointermove', (pointer) => {
       if (!pointer.isDown) return;
       cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
-      // 软边界：不让地图完全跑出视野
-      const vw = cam.width / cam.zoom;
-      const vh = cam.height / cam.zoom;
-      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, -vw * 0.3, MAP_W - vw * 0.7);
-      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, -vh * 0.3, MAP_H - vh * 0.7);
     });
 
     // DOM 原生滚轮缩放，缩放中心 = 鼠标指针位置
