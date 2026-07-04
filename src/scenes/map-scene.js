@@ -136,7 +136,6 @@ export class MapScene extends Phaser.Scene {
   setupCamera() {
     const cam = this.cameras.main;
 
-    cam.setBounds(0, 0, MAP_W, MAP_H);
     cam.setBackgroundColor('#2a4a6a');
 
     // 初始缩放：让地图大约占满屏幕
@@ -146,11 +145,16 @@ export class MapScene extends Phaser.Scene {
     );
     cam.setZoom(Math.max(0.28, initZoom * 0.95));
 
-    // 按住左键拖拽
+    // 按住左键拖拽（手动限制不超出地图边界太多）
     this.input.on('pointermove', (pointer) => {
       if (!pointer.isDown) return;
       cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
+      // 软边界：不让地图完全跑出视野
+      const vw = cam.width / cam.zoom;
+      const vh = cam.height / cam.zoom;
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, -vw * 0.3, MAP_W - vw * 0.7);
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, -vh * 0.3, MAP_H - vh * 0.7);
     });
 
     // DOM 原生滚轮缩放，缩放中心 = 鼠标指针位置
@@ -172,6 +176,12 @@ export class MapScene extends Phaser.Scene {
       // 补偿偏移——让指针下仍是缩放前那个世界点
       cam.scrollX += worldPre.x - worldPost.x;
       cam.scrollY += worldPre.y - worldPost.y;
+
+      // 软边界
+      const vw = cam.width / cam.zoom;
+      const vh = cam.height / cam.zoom;
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, -vw * 0.3, MAP_W - vw * 0.7);
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, -vh * 0.3, MAP_H - vh * 0.7);
     };
     this.sys.game.canvas.addEventListener('wheel', this._onWheel, { passive: false });
   }
