@@ -10,6 +10,9 @@ import { createTurnPanel, setTurnDisplay, removeTurnPanel } from '../ui/turn-pan
 import { applyBattleResult } from '../logic/battle/battle-resolution.js';
 import { showDiplomacyPanel, hideDiplomacyPanel } from '../ui/diplomacy-panel.js';
 import { showSavePanel, hideSavePanel } from '../ui/save-panel.js';
+import { showArmyPanel, hideArmyPanel } from '../ui/army-panel.js';
+import { showEspionagePanel, hideEspionagePanel } from '../ui/espionage-panel.js';
+import { showTurnReport } from '../ui/turn-report.js';
 import { saveGame } from '../logic/save-load.js';
 
 export class MapScene extends Phaser.Scene {
@@ -51,25 +54,26 @@ export class MapScene extends Phaser.Scene {
       showCityPanel(city, faction, governor, this.gameState);
     });
 
-    // 部队点击 → 显示部队信息
+    // 部队点击 → 行军操作面板
     this.events.on('army-clicked', (armyId) => {
       const army = this.gameState.armies[armyId];
       if (!army) return;
-      const faction = this.gameState.factions[army.factionId];
-      const total = army.units.reduce((s, u) => s + u.count, 0);
-      const unitList = army.units.map(u => `${u.type === 'infantry' ? '步兵' : u.type === 'cavalry' ? '骑兵' : '弓兵'}×${u.count}`).join('，');
-      alert(`${faction ? faction.name : '未知'}部队\n兵力：${total} 人\n编组：${unitList}\n状态：${army.state === 'idle' ? '待命' : army.state === 'moving' ? '行军中' : army.state}`);
+      hideCityPanel();
+      showArmyPanel(army, this.gameState);
     });
 
     // 切走场景时清理
     this.events.on('shutdown', () => {
       hideCityPanel();
       hideDiplomacyPanel();
+      hideEspionagePanel();
       hideSavePanel();
+      hideArmyPanel();
       removeTurnPanel();
       destroyCityMarkers();
       destroyArmyMarkers();
       this.removeDomButton('diplomacy-btn');
+      this.removeDomButton('spy-btn');
       this.removeDomButton('save-btn');
       // 清理 DOM 滚轮监听
       if (this._onWheel) {
@@ -89,6 +93,8 @@ export class MapScene extends Phaser.Scene {
       saveGame(this.gameState, 1, '自动存档');
       // 回合后刷新部队显示（可能有新征兵/AI出兵）
       refreshArmyMarkers(this, this.gameState.armies, this.gameState.factions);
+      // 弹出回合报告
+      showTurnReport(this.gameState);
 
       if (result.encounters && result.encounters.length > 0) {
         this.pendingEncounter = result.encounters[0];
@@ -102,8 +108,13 @@ export class MapScene extends Phaser.Scene {
       showDiplomacyPanel(this.gameState);
     });
 
+    // 间谍按钮
+    this.createDomButton('spy-btn', '间谍', 280, () => {
+      showEspionagePanel(this.gameState);
+    });
+
     // 存档按钮
-    this.createDomButton('save-btn', '存档', 280, () => {
+    this.createDomButton('save-btn', '存档', 360, () => {
       showSavePanel(this.gameState);
     });
 
