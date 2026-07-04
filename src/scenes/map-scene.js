@@ -115,11 +115,8 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头居中——延迟一帧等缩放生效
-    const cam = this.cameras.main;
-    this.time.delayedCall(16, () => {
-      cam.centerOn(MAP_W / 2, MAP_H / 2);
-    });
+    // 镜头居中
+    this.cameras.main.centerOn(MAP_W / 2, MAP_H / 2);
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
