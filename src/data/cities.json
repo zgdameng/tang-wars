@@ -1,7 +1,7 @@
 [
   {"id":"taiyuan","name":"太原","x":12,"y":5,"owner":"li-keyong","population":60000,"agriculture":6,"commerce":5,"defense":3,"stability":75,"province":"hedong"},
   {"id":"hezhong","name":"河中","x":10,"y":9,"owner":"li-keyong","population":30000,"agriculture":4,"commerce":3,"province":"hedong"},
-  {"id":"luzhou","name":"潞州","x":13,"y":7,"owner":"li-keyong","population":25000,"agriculture":3,"commerce":3,"province":"hedong"},
+  {"id":"luzhou","name":"潞州","x":12,"y":7,"owner":"li-keyong","population":25000,"agriculture":3,"commerce":3,"province":"hedong"},
   {"id":"bianzhou","name":"汴州","x":16,"y":10,"owner":"zhu-wen","population":70000,"agriculture":5,"commerce":8,"defense":4,"stability":70,"province":"henan"},
   {"id":"luoyang","name":"洛阳","x":13,"y":10,"owner":"zhu-wen","population":80000,"agriculture":4,"commerce":9,"defense":5,"stability":60,"province":"henan"},
   {"id":"xuzhou","name":"许州","x":15,"y":13,"owner":"zhu-wen","population":30000,"agriculture":4,"commerce":4,"province":"henan"},
