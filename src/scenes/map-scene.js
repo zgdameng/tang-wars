@@ -144,32 +144,53 @@ export class MapScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setBackgroundColor('#2a4a6a');
 
-    // 初始缩放：让地图大约占满屏幕
-    const initZoom = Math.min(
-      cam.width / MAP_W,
-      cam.height / MAP_H
-    );
+    const initZoom = Math.min(cam.width / MAP_W, cam.height / MAP_H);
     cam.setZoom(Math.max(0.28, initZoom * 0.95));
 
-    // 按住左键拖拽
+    // 缩放工具函数
+    this._zoomAt = (camera, mx, my, delta) => {
+      const wx = camera.scrollX + (mx - camera.width * 0.5) / camera.zoom;
+      const wy = camera.scrollY + (my - camera.height * 0.5) / camera.zoom;
+      const nz = Phaser.Math.Clamp(camera.zoom + delta, 0.25, 2.5);
+      camera.setZoom(nz);
+      camera.scrollX = wx - (mx - camera.width * 0.5) / nz;
+      camera.scrollY = wy - (my - camera.height * 0.5) / nz;
+    };
+
+    // 单指拖拽 / 鼠标拖拽
     this.input.on('pointermove', (pointer) => {
       if (!pointer.isDown) return;
+      const p1 = this.input.pointer1, p2 = this.input.pointer2;
+      if (p1 && p2 && p1.isDown && p2.isDown) return;
       cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
     });
 
-    // 滚轮缩放——以鼠标指针为中心
+    // 桌面滚轮
     this._onWheel = (e) => {
       e.preventDefault();
       const ptr = this.input.activePointer;
-      const wx = cam.scrollX + (ptr.x - cam.width * 0.5) / cam.zoom;
-      const wy = cam.scrollY + (ptr.y - cam.height * 0.5) / cam.zoom;
-      const newZoom = Phaser.Math.Clamp(cam.zoom - e.deltaY * 0.0008, 0.25, 2.5);
-      cam.setZoom(newZoom);
-      cam.scrollX = wx - (ptr.x - cam.width * 0.5) / newZoom;
-      cam.scrollY = wy - (ptr.y - cam.height * 0.5) / newZoom;
+      this._zoomAt(cam, ptr.x, ptr.y, -e.deltaY * 0.0008);
     };
     this.sys.game.canvas.addEventListener('wheel', this._onWheel, { passive: false });
+
+    // 手机双指缩放
+    this._pinchDist = 0;
+    this.input.on('pointerdown', () => {
+      const p1 = this.input.pointer1, p2 = this.input.pointer2;
+      if (p1 && p2 && p1.isDown && p2.isDown)
+        this._pinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    });
+    this.input.on('pointermove', () => {
+      const p1 = this.input.pointer1, p2 = this.input.pointer2;
+      if (!p1 || !p2 || !p1.isDown || !p2.isDown) return;
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      if (this._pinchDist > 0) {
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        this._zoomAt(cam, mx, my, (dist - this._pinchDist) * 0.005);
+      }
+      this._pinchDist = dist;
+    });
   }
 
   // 右下角 DOM 按钮
