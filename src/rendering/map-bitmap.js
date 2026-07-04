@@ -1,13 +1,26 @@
 /**
- * 三国志风格地图大图生成器 v2。
+ * 三国志风格地图生成器 v3 — 基于海拔高度图的地形渲染。
  *
- * 改进：更饱和的色彩、更清晰的边界、地面细节纹理、密集山脉森林。
+ * 原理（生活类比）：
+ *   像捏橡皮泥——先铺一层高低不平的高度图（西高东低、盆地洼下去），
+ *   然后按高度染色（低处绿、中间黄、高处褐、顶白），
+ *   最后从左上角打一束光，坡面该亮的地方亮、该暗的地方暗，
+ *   就有了立体凹凸感。
+ *
+ * 步骤：
+ *   1. 在 300×250 小画布上生成高度图 + 染色 + 光照阴影
+ *   2. 用画布自带缩放拉到 2400×2000 大图（浏览器硬件加速）
+ *   3. 在大图上叠加河流、山峰、森林装饰
  */
 
 export const MAP_W = 2400;
 export const MAP_H = 2000;
 export const CELL_W = MAP_W / 30; // 80
 export const CELL_H = MAP_H / 30; // ≈66.67
+
+// 小画布尺寸（1/8 大图，处理快）
+const SMALL_W = 300;
+const SMALL_H = 250;
 
 export function gridToPixel(col, row) {
   return {
@@ -16,457 +29,375 @@ export function gridToPixel(col, row) {
   };
 }
 
-// ============= 工具 =============
-
-function srand(col, row, salt) {
-  let h = ((col * 374761393 + row * 668265263 + salt * 1274126177) >>> 0);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h = Math.imul(h ^ (h >>> 16), 1);
-  return (h >>> 0) / 4294967296;
-}
-
-function hash(x, y) {
-  let h = ((x * 374761393 + y * 668265263 + 1274126177) >>> 0);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h = Math.imul(h ^ (h >>> 16), 1);
-  return (h >>> 0) / 4294967296;
-}
-
-// ============= 主入口 =============
+// ============================================================
+//  主入口
+// ============================================================
 
 export function generateMapBitmap() {
-  const canvas = document.createElement('canvas');
-  canvas.width = MAP_W;
-  canvas.height = MAP_H;
-  const ctx = canvas.getContext('2d');
+  // 1. 生成高度图数组（单位：米，0=海平面）
+  const hm = buildHeightmap();
 
-  // 1. 深海底色 → 陆地椭圆
-  paintBase(ctx);
+  // 2. 在小画布上绘制高度染色 + 光影
+  const smallCanvas = renderTerrainSmall(hm);
 
-  // 2. 地形色块（更饱和、边界更清晰）
-  paintTerrain(ctx);
+  // 3. 放大到大图
+  const bigCanvas = document.createElement('canvas');
+  bigCanvas.width = MAP_W;
+  bigCanvas.height = MAP_H;
+  const ctx = bigCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
+  ctx.drawImage(smallCanvas, 0, 0, MAP_W, MAP_H);
 
-  // 3. 地面细节——在整张地图上撒地形相应的纹理点
-  paintGroundDetail(ctx);
-
-  // 4. 山脉峰群（更密）
-  paintMountainRidges(ctx);
-
-  // 5. 森林（更多区域、更密）
-  paintForests(ctx);
-
-  // 6. 河流
+  // 4. 在大图上叠加河流 / 山峰 / 森林（全分辨率）
   paintRivers(ctx);
+  paintPeaks(ctx, hm);
+  paintForests(ctx, hm);
 
-  return canvas;
+  return bigCanvas;
 }
 
 // ============================================================
-//  1. 基底——深海 + 陆地椭圆
+//  高度图：用真实中国地形逻辑算出每个格点海拔
 // ============================================================
 
-function paintBase(ctx) {
-  // 深海
-  ctx.fillStyle = '#306898';
-  ctx.fillRect(0, 0, MAP_W, MAP_H);
+function buildHeightmap() {
+  const w = SMALL_W;
+  const h = SMALL_H;
+  const hm = new Float32Array(w * h);
 
-  // 近海浅水区
-  const shallow = ctx.createRadialGradient(1300, 1100, 300, 1300, 1100, 1700);
-  shallow.addColorStop(0, '#6098b8');
-  shallow.addColorStop(1, '#306898');
-  ctx.fillStyle = shallow;
-  ctx.fillRect(0, 0, MAP_W, MAP_H);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const col = (x / w) * 30;
+      const row = (y / h) * 30;
 
-  // 陆地主体（暖黄大地色）
-  const land = ctx.createRadialGradient(1200, 1000, 100, 1200, 1000, 1450);
-  land.addColorStop(0, '#ece0c0');
-  land.addColorStop(0.88, '#d8c898');
-  land.addColorStop(1, '#6098b8');
-  ctx.fillStyle = land;
-  ctx.fillRect(0, 0, MAP_W, MAP_H);
-}
+      let elev = baseElevation(col, row);
 
-// ============================================================
-//  2. 地形——饱和色块 + 锐利边界
-// ============================================================
+      // 叠加分形噪声（模拟真实地形褶皱）
+      const noise = fbm(col * 0.7, row * 0.7, 42, 4) * 35;
+      elev += noise - 10;
 
-function paintTerrain(ctx) {
-  // 青藏高原（西，灰白雪山）
-  blobLayer(ctx, [
-    { cx: 60, cy: 600, rx: 300, ry: 1000 },
-    { cx: 180, cy: 300, rx: 250, ry: 500 },
-    { cx: 150, cy: 1500, rx: 220, ry: 400 },
-    { cx: 250, cy: 1000, rx: 280, ry: 600 },
-  ], '#c8c0a8', 0.92, 80, 12);
+      // 限制在合理范围
+      elev = Math.max(0, Math.min(250, elev));
 
-  // 西部山区（秦岭大巴山，褐棕色）
-  blobLayer(ctx, [
-    { cx: 380, cy: 550, rx: 350, ry: 500 },
-    { cx: 420, cy: 1050, rx: 300, ry: 420 },
-    { cx: 320, cy: 800, rx: 330, ry: 550 },
-    { cx: 500, cy: 750, rx: 200, ry: 300 },
-  ], '#b89870', 0.88, 90, 14);
-
-  // 关中平原（山区中的绿洲）
-  blobLayer(ctx, [
-    { cx: 500, cy: 640, rx: 180, ry: 130 },
-    { cx: 480, cy: 690, rx: 150, ry: 110 },
-    { cx: 530, cy: 660, rx: 130, ry: 100 },
-  ], '#c8d870', 0.85, 50, 8);
-
-  // 四川盆地
-  blobLayer(ctx, [
-    { cx: 220, cy: 1080, rx: 200, ry: 160 },
-    { cx: 260, cy: 1030, rx: 170, ry: 140 },
-    { cx: 190, cy: 1120, rx: 160, ry: 130 },
-  ], '#b8c868', 0.82, 40, 6);
-
-  // 北方草原（黄绿）
-  blobLayer(ctx, [
-    { cx: 700, cy: 80, rx: 850, ry: 200 },
-    { cx: 1400, cy: 100, rx: 700, ry: 190 },
-    { cx: 350, cy: 150, rx: 450, ry: 170 },
-  ], '#c8c868', 0.85, 70, 10);
-
-  // 华北平原
-  blobLayer(ctx, [
-    { cx: 950, cy: 480, rx: 550, ry: 280 },
-    { cx: 1350, cy: 520, rx: 480, ry: 270 },
-    { cx: 700, cy: 560, rx: 380, ry: 250 },
-    { cx: 1100, cy: 600, rx: 450, ry: 260 },
-  ], '#90c058', 0.88, 80, 12);
-
-  // 中原
-  blobLayer(ctx, [
-    { cx: 1050, cy: 720, rx: 480, ry: 280 },
-    { cx: 1350, cy: 780, rx: 420, ry: 270 },
-    { cx: 850, cy: 800, rx: 350, ry: 240 },
-    { cx: 1200, cy: 850, rx: 400, ry: 250 },
-  ], '#80b848', 0.85, 70, 10);
-
-  // 江南水乡（东部沿海，亮绿）
-  blobLayer(ctx, [
-    { cx: 1700, cy: 880, rx: 430, ry: 340 },
-    { cx: 1900, cy: 1080, rx: 390, ry: 300 },
-    { cx: 1600, cy: 1150, rx: 350, ry: 280 },
-    { cx: 1750, cy: 1000, rx: 400, ry: 310 },
-  ], '#78b840', 0.83, 70, 10);
-
-  // 江南丘陵
-  blobLayer(ctx, [
-    { cx: 1000, cy: 1280, rx: 480, ry: 280 },
-    { cx: 1400, cy: 1350, rx: 430, ry: 270 },
-    { cx: 700, cy: 1350, rx: 390, ry: 250 },
-    { cx: 1200, cy: 1400, rx: 400, ry: 250 },
-  ], '#68a838', 0.84, 75, 11);
-
-  // 岭南
-  blobLayer(ctx, [
-    { cx: 750, cy: 1750, rx: 580, ry: 240 },
-    { cx: 1200, cy: 1780, rx: 480, ry: 220 },
-    { cx: 450, cy: 1700, rx: 380, ry: 200 },
-  ], '#509830', 0.85, 60, 8);
+      hm[y * w + x] = elev;
+    }
+  }
+  return hm;
 }
 
 /**
- * 画一组色块——渐变短，颜色在 85% 半径内保持，只在边缘淡出。
+ * 基础海拔（按中国地理分区的大趋势）。
+ * 取值单位约等于实际海拔的 1/20（方便映射到 0..255）。
+ *
+ * 中国真实地势：西高东低，三级阶梯：
+ *   第一级：青藏高原 4000m+
+ *   第二级：蒙古/黄土/云贵高原 1000-2000m
+ *   第三级：东部平原/丘陵 <500m
  */
-function blobLayer(ctx, blobs, color, alpha, scatter, edgeCount) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
+function baseElevation(col, row) {
+  // === 第一阶梯：青藏高原（极西，极高） ===
+  if (col < 3.5) return 220;                       // 青藏高原主体
+  if (col < 5 && row > 14 && row < 18) return 210;  // 高原南延
 
-  for (const b of blobs) {
-    const maxR = Math.max(b.rx, b.ry);
-    const grad = ctx.createRadialGradient(b.cx, b.cy, maxR * 0.15, b.cx, b.cy, maxR);
-    grad.addColorStop(0, color);
-    grad.addColorStop(0.8, color);          // 80% 半径内保持纯色
-    grad.addColorStop(0.95, color);
-    grad.addColorStop(1, 'transparent');    // 只在最外缘淡出
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // === 青藏高原东缘陡降（横断山脉）===
+  if (col < 5.5) return 180;
+  if (col < 6.5) return 140;
+  if (col < 7.5) return 100;
 
-    // 周围散布小圆，模拟不规则边界
-    for (let i = 0; i < edgeCount; i++) {
-      const angle = (i / edgeCount) * Math.PI * 2 + (b.cx % 1.5);
-      const dist = scatter * (0.5 + (i % 3) * 0.25);
-      const sx = b.cx + Math.cos(angle) * dist;
-      const sy = b.cy + Math.sin(angle) * dist;
-      const sr = 12 + (i * 11) % 18;
-      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
-      sg.addColorStop(0, color);
-      sg.addColorStop(0.6, color);
-      sg.addColorStop(1, 'transparent');
-      ctx.fillStyle = sg;
-      ctx.beginPath();
-      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  // === 四川盆地（第二阶梯中的洼地，约 500m）===
+  if (col >= 1.5 && col <= 5 && row >= 14 && row <= 18.5) return 25;
+
+  // === 秦岭（关中以南的东西向高脊，约 2000-3000m）===
+  if (row > 8.5 && row < 12 && col > 5 && col < 9) {
+    const distFromCenter = Math.abs(row - 10.2);
+    return 130 - distFromCenter * 12;  // 山脊高，向两侧递减
   }
 
-  ctx.restore();
+  // === 大巴山（四川盆地北侧）===
+  if (row > 12 && row < 14 && col > 5 && col < 9) return 100;
+
+  // === 关中平原（秦岭以北的谷地，约 400-600m）===
+  if (col >= 3 && col <= 7.5 && row >= 7 && row <= 8.5) return 30;
+
+  // === 黄土高原（第二阶梯，约 1000-2000m）===
+  if (col >= 7 && col < 10 && row >= 4 && row < 8) return 70;
+
+  // === 太行山（华北平原西沿，约 1000-2000m）===
+  if (col >= 9 && col < 10.5 && row >= 4 && row < 11) return 90;
+
+  // === 巫山/雪峰山（第二→第三阶梯过渡）===
+  if (col >= 10 && col < 12 && row >= 13 && row < 18) return 70;
+
+  // === 南岭（岭南以北分水岭，约 1000m）===
+  if (row >= 19 && row < 20.5 && col > 6 && col < 18) return 75;
+
+  // === 武夷山/浙闽丘陵 ===
+  if (col >= 18 && col < 21 && row >= 16 && row < 20) return 80;
+
+  // === 第三阶梯：华北平原（约 50-200m）===
+  if (col >= 10 && row >= 4 && row < 9) return 15;
+  // 中原（约 100-300m）
+  if (col >= 10 && col < 18 && row >= 9 && row < 14) return 20;
+
+  // === 第三阶梯：长江中下游平原 ===
+  if (col >= 10 && col < 22 && row >= 14 && row < 19) return 12;
+
+  // === 江南丘陵（约 200-500m）===
+  if (row >= 19 && row < 24 && col >= 8) return 40;
+
+  // === 岭南（约 200-500m）===
+  if (row >= 24) return 35;
+
+  // === 北方草原/蒙古高原（约 1000-1500m）===
+  if (row < 4) return 55;
+
+  // === 东部沿海低地 ===
+  if (col >= 22 && row >= 12 && row < 19) return 6;
+
+  // === 默认：中等海拔 ===
+  return 30;
 }
 
 // ============================================================
-//  3. 地面细节——在整个地图上按格撒纹理点
+//  分形噪声（模拟自然地形粗糙度）
 // ============================================================
 
-/** 大概判断某像素位置属于哪种地形（和 paintTerrain 的逻辑大致对应） */
-function getTerrainType(px, py) {
-  // 极西 → 雪山
-  if (px < 250) return 'snow';
-  // 西部 → 山地
-  if (px < 650 && !(px > 180 && px < 380 && py > 1000 && py < 1250) && !(px > 400 && px < 600 && py > 560 && py < 780)) return 'mountain';
-  // 北方草原
-  if (py < 280 && px > 300) return 'steppe';
-  // 四川盆地
-  if (px > 120 && px < 380 && py > 950 && py < 1200) return 'plain';
-  // 关中平原
-  if (px > 380 && px < 600 && py > 560 && py < 780) return 'plain';
-  // 江南水乡
-  if (px > 1500 && py > 750 && py < 1350) return 'farmland';
-  // 江南丘陵
-  if (py > 1200 && py < 1650 && px > 600) return 'hill';
-  // 岭南
-  if (py > 1650) return 'hill';
-  // 华北/中原 → 平原
-  if (py > 280 && py < 1200 && px > 500) return 'plain';
-  // 默认
-  return 'plain';
+function fbm(x, y, seed, octaves) {
+  let value = 0;
+  let amp = 0.5;
+  let freq = 1;
+  let max = 0;
+  for (let i = 0; i < octaves; i++) {
+    value += amp * noise2d(x * freq, y * freq, seed + i * 1000);
+    max += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return value / max;
 }
 
-function paintGroundDetail(ctx) {
-  // 用 20px 间隔的网格扫一遍，每个格点撒一个地形相关的小圆
-  const step = 18;
-  for (let y = 0; y < MAP_H; y += step) {
-    for (let x = 0; x < MAP_W; x += step) {
-      const terrain = getTerrainType(x, y);
-      const h = hash(x, y);
-      const ox = (hash(x + 99, y) - 0.5) * step;
-      const oy = (hash(x, y + 99) - 0.5) * step;
-      const px = x + ox;
-      const py = y + oy;
+/** 简单值噪声（无数组查找，纯运算） */
+function noise2d(x, y, seed) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  // smoothstep
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
 
-      switch (terrain) {
-        case 'plain':
-          // 浅绿草斑
-          ctx.fillStyle = `rgba(${70 + h * 40}, ${150 + h * 40}, ${50 + h * 30}, 0.25)`;
-          ctx.beginPath();
-          ctx.arc(px, py, 1.5 + h * 2.5, 0, Math.PI * 2);
-          ctx.fill();
-          break;
-        case 'farmland':
-          // 更亮的绿斑 + 偶尔小黄点（庄稼/花）
-          ctx.fillStyle = `rgba(${100 + h * 40}, ${170 + h * 30}, ${60 + h * 30}, 0.22)`;
-          ctx.beginPath();
-          ctx.arc(px, py, 1.5 + h * 2, 0, Math.PI * 2);
-          ctx.fill();
-          if (h > 0.75) {
-            ctx.fillStyle = 'rgba(220,210,100,0.3)';
-            ctx.beginPath();
-            ctx.arc(px, py, 0.8, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          break;
-        case 'hill':
-          // 深绿树丛小点
-          ctx.fillStyle = 'rgba(40,100,30,0.28)';
-          ctx.beginPath();
-          ctx.arc(px, py, 1.8 + h * 3, 0, Math.PI * 2);
-          ctx.fill();
-          break;
-        case 'mountain':
-          // 褐灰岩点
-          ctx.fillStyle = `rgba(${140 + h * 30}, ${120 + h * 25}, ${90 + h * 20}, 0.3)`;
-          ctx.beginPath();
-          ctx.arc(px, py, 1.2 + h * 2, 0, Math.PI * 2);
-          ctx.fill();
-          break;
-        case 'snow':
-          // 白灰斑
-          ctx.fillStyle = `rgba(220,215,200,0.25)`;
-          ctx.beginPath();
-          ctx.arc(px, py, 1 + h * 2, 0, Math.PI * 2);
-          ctx.fill();
-          break;
-        case 'steppe':
-          // 枯黄草斑
-          ctx.fillStyle = `rgba(${170 + h * 30}, ${170 + h * 25}, ${90 + h * 20}, 0.28)`;
-          ctx.beginPath();
-          ctx.arc(px, py, 1.5 + h * 2.5, 0, Math.PI * 2);
-          ctx.fill();
-          break;
+  const v00 = hash2d(ix, iy, seed);
+  const v10 = hash2d(ix + 1, iy, seed);
+  const v01 = hash2d(ix, iy + 1, seed);
+  const v11 = hash2d(ix + 1, iy + 1, seed);
+
+  const a = v00 + (v10 - v00) * sx;
+  const b = v01 + (v11 - v01) * sx;
+  return a + (b - a) * sy;
+}
+
+function hash2d(x, y, seed) {
+  let h = ((x * 374761393 + y * 668265263 + seed * 1274126177) >>> 0);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = Math.imul(h ^ (h >>> 16), 1);
+  return (h >>> 0) / 4294967296;
+}
+
+// ============================================================
+//  在小画布上：海拔染色 + 光影阴影
+// ============================================================
+
+function renderTerrainSmall(hm) {
+  const canvas = document.createElement('canvas');
+  canvas.width = SMALL_W;
+  canvas.height = SMALL_H;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(SMALL_W, SMALL_H);
+  const data = img.data;
+
+  for (let y = 0; y < SMALL_H; y++) {
+    for (let x = 0; x < SMALL_W; x++) {
+      const elev = hm[y * SMALL_W + x];
+
+      // 海拔→颜色（分级渐变）
+      let r, g, b;
+      if (elev < 3) {
+        // 深海
+        r = 30; g = 70; b = 140;
+        const t = elev / 3;
+        r = Math.round(30 + t * 20);
+        g = Math.round(70 + t * 40);
+        b = Math.round(140 - t * 20);
+      } else if (elev < 8) {
+        // 浅海/海滩
+        const t = (elev - 3) / 5;
+        r = Math.round(50 + t * 100);
+        g = Math.round(110 + t * 60);
+        b = Math.round(120 + t * 30);
+      } else if (elev < 20) {
+        // 低地平原（翠绿）
+        const t = (elev - 8) / 12;
+        r = Math.round(150 - t * 30);
+        g = Math.round(170 + t * 10);
+        b = Math.round(70 + t * 20);
+      } else if (elev < 50) {
+        // 丘陵（黄绿过渡）
+        const t = (elev - 20) / 30;
+        r = Math.round(120 + t * 50);
+        g = Math.round(180 - t * 40);
+        b = Math.round(90 - t * 20);
+      } else if (elev < 100) {
+        // 山地（褐色）
+        const t = (elev - 50) / 50;
+        r = Math.round(170 - t * 10);
+        g = Math.round(140 - t * 30);
+        b = Math.round(70 - t * 10);
+      } else if (elev < 160) {
+        // 高山（灰褐）
+        const t = (elev - 100) / 60;
+        r = Math.round(160 + t * 30);
+        g = Math.round(110 + t * 50);
+        b = Math.round(60 + t * 50);
+      } else if (elev < 210) {
+        // 雪线以上
+        const t = (elev - 160) / 50;
+        r = Math.round(190 + t * 40);
+        g = Math.round(160 + t * 50);
+        b = Math.round(110 + t * 80);
+      } else {
+        // 雪山之巅
+        r = 235; g = 230; b = 220;
       }
+
+      // 计算光影（从左上打光）
+      const shade = computeShade(hm, x, y, SMALL_W, SMALL_H);
+
+      // 应用光影
+      const sr = Math.max(0, Math.min(255, Math.round(r * shade)));
+      const sg = Math.max(0, Math.min(255, Math.round(g * shade)));
+      const sb = Math.max(0, Math.min(255, Math.round(b * shade)));
+
+      const i = (y * SMALL_W + x) * 4;
+      data[i] = sr;
+      data[i + 1] = sg;
+      data[i + 2] = sb;
+      data[i + 3] = 255;
     }
   }
+
+  ctx.putImageData(img, 0, 0);
+  return canvas;
 }
 
-// ============================================================
-//  4. 山脉——更多脊线、更密峰群
-// ============================================================
+/**
+ * 计算一个像素的光照值。
+ * 原理：看这个点相对于右边/下边邻居的高度差，
+ * 朝向光源（左上）的坡面亮，背向光源的坡面暗。
+ *
+ * 返回 0.4~1.35 之间的系数（<1=阴影，>1=高亮）。
+ */
+function computeShade(hm, x, y, w, h) {
+  const elev = hm[y * w + x];
 
-function paintMountainRidges(ctx) {
-  const ranges = [
-    // 青藏高原东缘
-    [{ x: 40, y: 100 }, { x: 70, y: 400 }, { x: 100, y: 700 }, { x: 130, y: 1000 }, { x: 160, y: 1300 }, { x: 190, y: 1550 }, { x: 220, y: 1700 }],
-    // 青藏高原第二道
-    [{ x: 100, y: 150 }, { x: 140, y: 450 }, { x: 170, y: 750 }, { x: 200, y: 1050 }, { x: 230, y: 1350 }, { x: 260, y: 1600 }],
-    // 秦岭主脉
-    [{ x: 180, y: 560 }, { x: 320, y: 540 }, { x: 460, y: 520 }, { x: 600, y: 500 }, { x: 720, y: 530 }],
-    // 秦岭副脉
-    [{ x: 160, y: 620 }, { x: 300, y: 600 }, { x: 440, y: 580 }, { x: 580, y: 560 }, { x: 700, y: 580 }],
-    // 大巴山
-    [{ x: 170, y: 820 }, { x: 300, y: 790 }, { x: 440, y: 770 }, { x: 570, y: 750 }, { x: 660, y: 780 }],
-    // 太行山
-    [{ x: 620, y: 280 }, { x: 660, y: 420 }, { x: 690, y: 560 }, { x: 670, y: 700 }],
-    // 太行山副
-    [{ x: 660, y: 300 }, { x: 700, y: 440 }, { x: 720, y: 570 }, { x: 700, y: 680 }],
-    // 南岭
-    [{ x: 280, y: 1480 }, { x: 550, y: 1460 }, { x: 850, y: 1480 }, { x: 1150, y: 1500 }, { x: 1450, y: 1520 }],
-    // 武夷山/浙闽
-    [{ x: 1550, y: 1280 }, { x: 1650, y: 1430 }, { x: 1700, y: 1580 }, { x: 1650, y: 1720 }],
-    // 巫山/雪峰山
-    [{ x: 380, y: 920 }, { x: 480, y: 970 }, { x: 580, y: 1020 }, { x: 680, y: 1070 }],
-    // 大娄山
-    [{ x: 350, y: 1100 }, { x: 450, y: 1140 }, { x: 550, y: 1180 }, { x: 650, y: 1200 }],
-  ];
+  // 取右边和下边邻居高度，计算坡度
+  const x2 = Math.min(x + 1, w - 1);
+  const y2 = Math.min(y + 1, h - 1);
+  const dx = (hm[y * w + x2] - elev) * 8;  // *8 因为小图画布高度值范围大
+  const dy = (hm[y2 * w + x] - elev) * 8;
 
-  for (const ridge of ranges) {
-    paintRidge(ctx, ridge);
+  // 光源方向：从左上照来 (lightX=-1, lightY=-1)，归一化
+  const lx = -0.707;
+  const ly = -0.707;
+
+  // 表面法线的水平分量: (-dx, -dy, 1)
+  const dot = (-dx * lx + -dy * ly + 1);
+  const len = Math.sqrt(dx * dx + dy * dy + 1);
+  let shade = dot / len;
+
+  // 映射：min 0.4（暗面），max 1.35（亮面），1.0 = 平地
+  shade = Math.max(0.4, Math.min(1.35, shade * 1.15));
+
+  // 让深水区稍暗（水深越深越暗）
+  if (elev < 5) {
+    shade *= 0.65 + (elev / 5) * 0.35;
   }
-}
 
-function paintRidge(ctx, points) {
-  if (points.length < 2) return;
-
-  // 山基底阴影
-  ctx.save();
-  ctx.strokeStyle = 'rgba(80,65,42,0.22)';
-  ctx.lineWidth = 45;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-  ctx.stroke();
-  ctx.restore();
-
-  const totalLen = pathLength(points);
-  const spacing = 22;
-  const count = Math.floor(totalLen / spacing);
-
-  for (let i = 0; i < count; i++) {
-    const t = i / count;
-    const pt = pointOnPath(points, t);
-    // 山峰散开一些模拟双排峰
-    const ox = Math.sin(i * 3.7) * 20 + Math.cos(i * 1.3) * 10;
-    const oy = Math.cos(i * 2.9) * 16 + Math.sin(i * 2.1) * 10;
-    const px = pt.x + ox;
-    const py = pt.y + oy;
-    const sz = 4 + (i % 4) * 2.5 + Math.abs(Math.sin(i * 1.3)) * 5;
-
-    // 峰体暗面
-    ctx.fillStyle = '#6a5840';
-    ctx.beginPath();
-    ctx.moveTo(px, py - sz);
-    ctx.lineTo(px + sz * 0.55, py + sz * 0.3);
-    ctx.lineTo(px - sz * 0.55, py + sz * 0.3);
-    ctx.closePath();
-    ctx.fill();
-
-    // 峰体亮面（左上光）
-    ctx.fillStyle = '#b09870';
-    ctx.beginPath();
-    ctx.moveTo(px, py - sz);
-    ctx.lineTo(px - sz * 0.2, py - sz * 0.1);
-    ctx.lineTo(px - sz * 0.55, py + sz * 0.3);
-    ctx.closePath();
-    ctx.fill();
-  }
+  return shade;
 }
 
 // ============================================================
-//  5. 森林——更多、更密
+//  从高度图中取某一点的海拔（用于在大图上定位装饰）
 // ============================================================
 
-function paintForests(ctx) {
-  const forests = [
-    { cx: 1500, cy: 1380, rx: 280, ry: 200, density: 0.6 },
-    { cx: 900, cy: 1480, rx: 320, ry: 220, density: 0.55 },
-    { cx: 500, cy: 1380, rx: 220, ry: 280, density: 0.5 },
-    { cx: 1700, cy: 1580, rx: 220, ry: 180, density: 0.6 },
-    { cx: 600, cy: 880, rx: 180, ry: 220, density: 0.45 },
-    { cx: 1100, cy: 1680, rx: 320, ry: 200, density: 0.5 },
-    { cx: 700, cy: 1200, rx: 200, ry: 180, density: 0.4 },
-    { cx: 1300, cy: 1300, rx: 200, ry: 160, density: 0.45 },
-    { cx: 1800, cy: 1250, rx: 180, ry: 150, density: 0.5 },
-    { cx: 400, cy: 1450, rx: 160, ry: 180, density: 0.4 },
-  ];
-
-  for (const f of forests) {
-    paintForestPatch(ctx, f.cx, f.cy, f.rx, f.ry, f.density);
-  }
-}
-
-function paintForestPatch(ctx, cx, cy, rx, ry, density) {
-  const treeCount = Math.floor((rx * ry) / 300 * density);
-
-  for (let i = 0; i < treeCount; i++) {
-    const angle = srand(i, 0, Math.floor(cx + cy)) * Math.PI * 2;
-    const dist = Math.sqrt(srand(i, 1, Math.floor(cx))) * 1.0;
-    const px = cx + Math.cos(angle) * rx * dist;
-    const py = cy + Math.sin(angle) * ry * dist;
-    const sz = 1.8 + srand(i, 2, Math.floor(cy)) * 3.5;
-
-    // 树影
-    ctx.fillStyle = 'rgba(25,50,20,0.55)';
-    ctx.beginPath();
-    ctx.arc(px + 0.7, py + 0.7, sz, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 树冠（两种绿混合）
-    const green = srand(i, 3, 77) > 0.5 ? 'rgba(55,105,42,0.65)' : 'rgba(40,90,32,0.65)';
-    ctx.fillStyle = green;
-    ctx.beginPath();
-    ctx.arc(px, py, sz, 0, Math.PI * 2);
-    ctx.fill();
-  }
+function sampleElevation(hm, col, row) {
+  // col, row 在 0..30 范围
+  const x = Math.round((col / 30) * (SMALL_W - 1));
+  const y = Math.round((row / 30) * (SMALL_H - 1));
+  return hm[Math.max(0, Math.min(SMALL_H - 1, y)) * SMALL_W + Math.max(0, Math.min(SMALL_W - 1, x))];
 }
 
 // ============================================================
-//  6. 河流
+//  河流：在大图上画（贝塞尔曲线）
 // ============================================================
 
 function paintRivers(ctx) {
+  // 黄河——从青藏高原向北拐到河套，再向南到关中，再向东入海
   const yellow = [
-    { x: 240, y: 400 }, { x: 400, y: 410 }, { x: 600, y: 430 },
-    { x: 800, y: 480 }, { x: 950, y: 540 }, { x: 1100, y: 600 },
-    { x: 1200, y: 640 }, { x: 1350, y: 620 }, { x: 1500, y: 560 },
-    { x: 1650, y: 500 }, { x: 1850, y: 450 }, { x: 2100, y: 420 },
-    { x: 2350, y: 410 },
+    { x: 160, y: 340 },   // 源头（青藏高原东缘，col≈2,row≈5）
+    { x: 280, y: 300 },   // 河套（北拐）
+    { x: 350, y: 340 },
+    { x: 430, y: 420 },
+    { x: 520, y: 540 },   // 向南拐到关中北部
+    { x: 650, y: 620 },
+    { x: 850, y: 560 },   // 洛阳一带
+    { x: 1050, y: 620 },
+    { x: 1250, y: 660 },  // 汴州附近
+    { x: 1450, y: 580 },
+    { x: 1700, y: 480 },  // 向东
+    { x: 1950, y: 430 },
+    { x: 2200, y: 410 },
+    { x: 2380, y: 400 },  // 入海
   ];
 
+  // 长江——从四川盆地东流出，经三峡、江陵、襄阳，过扬州入海
   const yangtze = [
-    { x: 100, y: 1080 }, { x: 250, y: 1080 }, { x: 400, y: 1090 },
-    { x: 550, y: 1110 }, { x: 700, y: 1100 }, { x: 850, y: 1120 },
-    { x: 1000, y: 1140 }, { x: 1150, y: 1130 }, { x: 1300, y: 1110 },
-    { x: 1450, y: 1120 }, { x: 1600, y: 1150 }, { x: 1800, y: 1180 },
-    { x: 2000, y: 1200 }, { x: 2200, y: 1210 }, { x: 2380, y: 1220 },
+    { x: 240, y: 1030 },  // 四川盆地出口
+    { x: 350, y: 1040 },
+    { x: 500, y: 1080 },  // 三峡
+    { x: 650, y: 1100 },
+    { x: 800, y: 1120 },  // 江陵附近
+    { x: 950, y: 1130 },
+    { x: 1100, y: 1120 }, // 襄阳
+    { x: 1300, y: 1110 },
+    { x: 1500, y: 1130 },
+    { x: 1700, y: 1160 }, // 扬州
+    { x: 1950, y: 1190 },
+    { x: 2200, y: 1200 },
+    { x: 2380, y: 1210 }, // 入海
   ];
 
-  paintRiver(ctx, yellow, '#4890c0', 12);
-  paintRiver(ctx, yangtze, '#48a0c8', 13);
+  // 岷江（四川盆地内，都江堰水系）
+  const minjiang = [
+    { x: 100, y: 980 },
+    { x: 150, y: 1000 },
+    { x: 200, y: 1020 },
+    { x: 240, y: 1030 },  // 汇入长江
+  ];
+
+  paintRiverPath(ctx, yellow, '#4898d0', 14);
+  paintRiverPath(ctx, yangtze, '#48a8d8', 15);
+  paintRiverPath(ctx, minjiang, '#4898c8', 7);
 }
 
-function paintRiver(ctx, points, color, width) {
-  if (points.length < 2) return;
-  const path = smoothPath(points);
+function paintRiverPath(ctx, pts, color, width) {
+  if (pts.length < 2) return;
+  const path = makeSmoothPath(pts);
 
-  // 河岸暗影
+  // 河床暗边（比河面宽）
   ctx.save();
-  ctx.strokeStyle = 'rgba(30,40,50,0.35)';
-  ctx.lineWidth = width + 8;
+  ctx.strokeStyle = 'rgba(30,40,30,0.30)';
+  ctx.lineWidth = width + 10;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
@@ -483,7 +414,7 @@ function paintRiver(ctx, points, color, width) {
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.globalAlpha = 0.75;
+  ctx.globalAlpha = 0.7;
   ctx.beginPath();
   ctx.moveTo(path[0].x, path[0].y);
   for (let i = 1; i < path.length - 2; i += 3) {
@@ -492,10 +423,10 @@ function paintRiver(ctx, points, color, width) {
   ctx.stroke();
   ctx.restore();
 
-  // 河面高光
+  // 水面高光（细亮线）
   ctx.save();
-  ctx.strokeStyle = 'rgba(170,220,240,0.3)';
-  ctx.lineWidth = width * 0.3;
+  ctx.strokeStyle = 'rgba(180,220,245,0.3)';
+  ctx.lineWidth = width * 0.28;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
@@ -507,7 +438,7 @@ function paintRiver(ctx, points, color, width) {
   ctx.restore();
 }
 
-function smoothPath(pts) {
+function makeSmoothPath(pts) {
   if (pts.length < 3) return pts;
   const out = [];
   for (let i = 0; i < pts.length - 1; i++) {
@@ -524,10 +455,106 @@ function smoothPath(pts) {
 }
 
 // ============================================================
+//  山峰三角——只在高海拔区域（山区）画
+// ============================================================
+
+function paintPeaks(ctx, hm) {
+  // 定义几条山脉脊线的走向（大图坐标）
+  const ridges = [
+    [{ x: 60, y: 100 }, { x: 90, y: 400 }, { x: 120, y: 700 }, { x: 150, y: 1000 }, { x: 180, y: 1400 }, { x: 200, y: 1700 }],
+    [{ x: 120, y: 200 }, { x: 160, y: 500 }, { x: 190, y: 800 }, { x: 220, y: 1100 }, { x: 250, y: 1500 }],
+    [{ x: 180, y: 540 }, { x: 330, y: 520 }, { x: 470, y: 500 }, { x: 610, y: 490 }, { x: 730, y: 520 }],
+    [{ x: 160, y: 600 }, { x: 310, y: 580 }, { x: 450, y: 560 }, { x: 590, y: 550 }],
+    [{ x: 170, y: 810 }, { x: 310, y: 780 }, { x: 450, y: 760 }, { x: 580, y: 740 }, { x: 670, y: 770 }],
+    [{ x: 620, y: 270 }, { x: 660, y: 430 }, { x: 690, y: 570 }, { x: 680, y: 710 }],
+    [{ x: 660, y: 310 }, { x: 700, y: 450 }, { x: 730, y: 580 }, { x: 710, y: 690 }],
+    [{ x: 280, y: 1470 }, { x: 560, y: 1450 }, { x: 860, y: 1470 }, { x: 1160, y: 1490 }, { x: 1460, y: 1510 }],
+    [{ x: 1550, y: 1270 }, { x: 1660, y: 1430 }, { x: 1710, y: 1580 }, { x: 1660, y: 1730 }],
+    [{ x: 380, y: 910 }, { x: 490, y: 960 }, { x: 590, y: 1010 }, { x: 690, y: 1060 }],
+    [{ x: 350, y: 1090 }, { x: 460, y: 1130 }, { x: 560, y: 1170 }, { x: 660, y: 1190 }],
+  ];
+
+  for (const ridge of ridges) {
+    const totalLen = pathLen(ridge);
+    const steps = Math.floor(totalLen / 18);
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const pt = pathAt(ridge, t);
+      const ox = Math.sin(i * 3.7) * 22 + Math.cos(i * 1.3) * 10;
+      const oy = Math.cos(i * 2.9) * 16 + Math.sin(i * 2.1) * 10;
+      const px = pt.x + ox;
+      const py = pt.y + oy;
+      const sz = 5 + (i % 4) * 2.5 + Math.abs(Math.sin(i * 1.3)) * 5;
+
+      // 峰体暗面
+      ctx.fillStyle = 'rgba(120,95,60,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(px, py - sz);
+      ctx.lineTo(px + sz * 0.55, py + sz * 0.3);
+      ctx.lineTo(px - sz * 0.55, py + sz * 0.3);
+      ctx.closePath();
+      ctx.fill();
+
+      // 峰体亮面
+      ctx.fillStyle = 'rgba(190,160,110,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(px, py - sz);
+      ctx.lineTo(px - sz * 0.2, py - sz * 0.1);
+      ctx.lineTo(px - sz * 0.55, py + sz * 0.3);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+// ============================================================
+//  森林——在中海拔（丘陵）区域撒树冠点
+// ============================================================
+
+function paintForests(ctx, hm) {
+  const forests = [
+    { cx: 1500, cy: 1380, rx: 280, ry: 200, n: 500 },
+    { cx: 900, cy: 1480, rx: 320, ry: 220, n: 550 },
+    { cx: 500, cy: 1380, rx: 220, ry: 280, n: 480 },
+    { cx: 1700, cy: 1580, rx: 220, ry: 180, n: 400 },
+    { cx: 600, cy: 880, rx: 180, ry: 220, n: 350 },
+    { cx: 1100, cy: 1680, rx: 320, ry: 200, n: 450 },
+    { cx: 700, cy: 1200, rx: 200, ry: 180, n: 300 },
+    { cx: 1300, cy: 1300, rx: 200, ry: 160, n: 280 },
+    { cx: 1800, cy: 1250, rx: 180, ry: 150, n: 250 },
+    { cx: 400, cy: 1450, rx: 160, ry: 180, n: 260 },
+  ];
+
+  for (const f of forests) {
+    for (let i = 0; i < f.n; i++) {
+      const h = hash2d(i, Math.floor(f.cx + f.cy), 99);
+      const angle = hash2d(i, 1, 100) * Math.PI * 2;
+      const dist = Math.sqrt(hash2d(i, 2, 101));
+      const px = f.cx + Math.cos(angle) * f.rx * dist;
+      const py = f.cy + Math.sin(angle) * f.ry * dist;
+      const sz = 1.5 + hash2d(i, 3, 102) * 3.5;
+
+      // 树影
+      ctx.fillStyle = 'rgba(20,40,16,0.55)';
+      ctx.beginPath();
+      ctx.arc(px + 0.7, py + 0.7, sz, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 树冠
+      const g = hash2d(i, 4, 103) > 0.5 ? 'rgba(55,105,42,0.65)' : 'rgba(40,90,32,0.65)';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, sz, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// ============================================================
 //  路径工具
 // ============================================================
 
-function pathLength(points) {
+function pathLen(points) {
   let len = 0;
   for (let i = 1; i < points.length; i++) {
     const dx = points[i].x - points[i - 1].x;
@@ -537,9 +564,9 @@ function pathLength(points) {
   return len;
 }
 
-function pointOnPath(points, t) {
+function pathAt(points, t) {
   if (points.length === 1) return points[0];
-  const total = pathLength(points);
+  const total = pathLen(points);
   let target = t * total;
   for (let i = 1; i < points.length; i++) {
     const dx = points[i].x - points[i - 1].x;
