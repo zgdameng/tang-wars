@@ -56,6 +56,11 @@ export class MapScene extends Phaser.Scene {
       destroyCityMarkers();
       this.removeDomButton('diplomacy-btn');
       this.removeDomButton('save-btn');
+      // 清理 DOM 滚轮监听
+      if (this._onWheel) {
+        this.sys.game.canvas.removeEventListener('wheel', this._onWheel);
+        this._onWheel = null;
+      }
       // 清理地图纹理
       if (this.textures.exists('map-bitmap')) {
         this.textures.remove('map-bitmap');
@@ -105,12 +110,19 @@ export class MapScene extends Phaser.Scene {
     updateCityLabelPositions(this.cameras.main);
   }
 
-  // 相机：限制在地图范围内，支持拖拽和滚轮缩放
+  // 相机：限制在地图范围内，支持拖拽平移 + 滚轮缩放（聚焦鼠标位置）
   setupCamera() {
     const cam = this.cameras.main;
 
     cam.setBounds(0, 0, MAP_W, MAP_H);
     cam.setBackgroundColor('#2a4a6a');
+
+    // 初始缩放：让地图大约占满屏幕
+    const initZoom = Math.min(
+      cam.width / MAP_W,
+      cam.height / MAP_H
+    );
+    cam.setZoom(Math.max(0.28, initZoom * 0.95));
 
     // 按住左键拖拽
     this.input.on('pointermove', (pointer) => {
@@ -119,11 +131,31 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
     });
 
-    // 滚轮缩放
-    this.input.on('wheel', (_pointer, _objs, _dx, dy) => {
-      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 2.5);
+    // DOM 原生滚轮缩放（比 Phaser wheel 可靠），缩放中心 = 鼠标位置
+    this._onWheel = (e) => {
+      e.preventDefault();
+      const canvas = this.sys.game.canvas;
+      const rect = canvas.getBoundingClientRect();
+      // 鼠标在游戏画布内的坐标
+      const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+      // 缩放前鼠标下的世界坐标
+      const worldPre = { x: 0, y: 0 };
+      cam.getWorldPoint(mx, my, worldPre);
+
+      const newZoom = Phaser.Math.Clamp(cam.zoom - e.deltaY * 0.0008, 0.25, 2.5);
       cam.setZoom(newZoom);
-    });
+
+      // 缩放后鼠标位置对应的世界坐标
+      const worldPost = { x: 0, y: 0 };
+      cam.getWorldPoint(mx, my, worldPost);
+
+      // 补偿偏移，让鼠标位置保持指向缩放前那个世界点
+      cam.scrollX += worldPre.x - worldPost.x;
+      cam.scrollY += worldPre.y - worldPost.y;
+    };
+    this.sys.game.canvas.addEventListener('wheel', this._onWheel, { passive: false });
   }
 
   // 右下角 DOM 按钮
