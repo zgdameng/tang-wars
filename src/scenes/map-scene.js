@@ -44,7 +44,7 @@ export class MapScene extends Phaser.Scene {
       if (!city) return;
       const faction = city.owner ? this.gameState.factions[city.owner] : null;
       const governor = city.governor ? this.gameState.generals[city.governor] : null;
-      showCityPanel(city, faction, governor);
+      showCityPanel(city, faction, governor, this.gameState);
     });
 
     // 切走场景时清理
