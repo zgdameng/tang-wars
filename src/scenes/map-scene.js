@@ -112,31 +112,139 @@ export class MapScene extends Phaser.Scene {
     updateCityLabelPositions(this.cameras.main);
   }
 
-  // 生成30×30的地形格，用不同绿色模拟草原/森林/山地
+  // 生成30×30地形格——按中国真实地理分区：西高东低、北草南丘、黄河长江横穿
   generateMapData() {
     const cols = CONFIG.MAP_COLS;
     const rows = CONFIG.MAP_ROWS;
     const tiles = [];
 
+    // 黄河河道：上游从青藏高原流出 → 向东 → 洛阳附近向南拐 → 向东北入海
+    const inYellow = (c, r) => {
+      // 上游（青→甘，cols 4-8）
+      if (c >= 4 && c <= 8 && Math.abs(r - 6) <= 0) return true;
+      // 中游（向南拐到洛阳一带，cols 8-14）
+      if (c >= 9 && c <= 14 && Math.abs(r - (7 + (c - 8) * 0.4)) <= 1) return true;
+      // 下游（向东北入海，cols 14-26）
+      if (c >= 15 && c <= 26 && Math.abs(r - 10) <= 1) return true;
+      return false;
+    };
+
+    // 长江河道：四川盆地流出 → 经江陵襄阳 → 向东南到扬州入海
+    const inYangtze = (c, r) => {
+      // 上游（四川盆地东端，cols 2-8）
+      if (c >= 2 && c <= 8 && Math.abs(r - 17) <= 0) return true;
+      // 中游（荆襄一带，cols 8-16）
+      if (c >= 9 && c <= 16 && Math.abs(r - 17) <= 1) return true;
+      // 下游（江南入海，cols 16-28）
+      if (c >= 17 && c <= 28 && Math.abs(r - (17 + (c - 16) * 0.25)) <= 1) return true;
+      return false;
+    };
+
     for (let r = 0; r < rows; r++) {
       tiles[r] = [];
       for (let c = 0; c < cols; c++) {
-        // 用坐标算一个伪随机数，确保同坐标永远同色
-        const rng = ((c * 17 + r * 31) % 100) / 100;
-        let color = 0x2d5a1e; // 默认：草原绿
-        if (rng < 0.15) color = 0x3d6a2e; // 深绿：森林
-        if (rng > 0.85) color = 0x4a7a30; // 浅绿：农田
-        // 边缘放山脉（地图四周是山）
-        if (c < 1 || c >= cols - 1 || r < 1 || r >= rows - 1) {
-          color = 0x5a4a30; // 褐色：山
+        // === 从"默认平原"开始，后面一层层覆盖 ===
+        let type = 'plain';
+        let color = 0x3a6a2e;   // 中原绿
+        let height = 2;
+
+        // --- 大地形区块（大面积先铺） ---
+
+        // 青藏高原东缘（极西，灰白高海拔）
+        if (c <= 3) {
+          type = 'snow';
+          color = 0x8a8e82;
+          height = 14;
         }
-        // 河流（一条斜穿的蓝带）
-        if (Math.abs(c - r - 2) <= 1 || Math.abs(c + r - 35) <= 1) {
-          color = 0x304a6a; // 蓝：河流
+
+        // 西部山脉（秦岭-大巴山过渡带，列4-9）
+        if (c >= 4 && c <= 9) {
+          type = 'mountain';
+          color = 0x6a5a38;
+          height = 10;
         }
-        tiles[r][c] = { type: 'plain', color };
+
+        // 北方草原（地图顶部的草黄带，但不包括极西高原）
+        if (r <= 4 && c >= 4) {
+          type = 'steppe';
+          color = 0x8a8a3e;
+          height = 1;
+        }
+
+        // 华北平原（黄河下游以北，河北到中原）
+        if (c >= 10 && r >= 4 && r <= 11) {
+          type = 'plain';
+          color = 0x5a9a3e;
+          height = 2;
+        }
+
+        // 江南丘陵（长江以南、岭南以北的起伏地带）
+        if (r >= 17 && r <= 24 && c >= 9) {
+          type = 'hill';
+          color = 0x3a7a2e;
+          height = 5;
+        }
+
+        // 江南水乡（东部沿海低地）
+        if (c >= 20 && r >= 12 && r <= 21) {
+          type = 'farmland';
+          color = 0x5aaa4e;
+          height = 1;
+        }
+
+        // 岭南（极南湿热密林）
+        if (r >= 24) {
+          type = 'hill';
+          color = 0x2a6a1e;
+          height = 4;
+        }
+
+        // --- 特殊区域（小块精确修正） ---
+
+        // 关中平原（长安凤翔一带，山区中的平川）
+        if (c >= 3 && c <= 7 && r >= 8 && r <= 11) {
+          type = 'plain';
+          color = 0x6a9a4e;
+          height = 2;
+        }
+
+        // 四川盆地（成都平原，高山环绕中的低洼沃土）
+        if (c >= 1 && c <= 4 && r >= 14 && r <= 18) {
+          type = 'plain';
+          color = 0x5a8a3e;
+          height = 2;
+        }
+
+        // --- 河流（最后覆盖，水蓝色） ---
+        if (inYellow(c, r)) {
+          type = 'water';
+          color = 0x3060a0;
+          height = 0;
+        }
+        if (inYangtze(c, r)) {
+          type = 'water';
+          color = 0x3070b0;
+          height = 0;
+        }
+
+        // --- 地图边缘屏障（除非有城池需要开口） ---
+        if ((c === 0 || c === cols - 1 || r === 0 || r === rows - 1) && type !== 'water') {
+          const isCitySpot =
+            (c === 18 && r === 2) ||   // 幽州靠北边
+            (c === 1 && r === 16) ||    // 成都靠西边
+            (c === 24 && r === 22) ||   // 杭州靠东边
+            (c === 8 && r === 27);      // 广州靠南边
+          if (!isCitySpot) {
+            type = 'mountain';
+            color = 0x5a4a30;
+            height = 10;
+          }
+        }
+
+        tiles[r][c] = { type, color, height };
       }
     }
+
     return { cols, rows, tiles };
   }
 
