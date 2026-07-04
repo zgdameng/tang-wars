@@ -116,6 +116,7 @@ export class MapScene extends Phaser.Scene {
     });
 
     // 手动置镜头到地图正中央
+    const cam = this.cameras.main;
     cam.setScroll(
       MAP_W / 2 - cam.width / (2 * cam.zoom),
       MAP_H / 2 - cam.height / (2 * cam.zoom)
