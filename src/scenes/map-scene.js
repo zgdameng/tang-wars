@@ -28,7 +28,7 @@ export class MapScene extends Phaser.Scene {
     }
 
     // 生成三国志风格整张地图（Canvas 位图 → Phaser 纹理 → Image）
-    const bitmap = generateMapBitmap();
+    const bitmap = generateMapBitmap(this.gameState);
     const tex = this.textures.addCanvas('map-bitmap', bitmap);
     this.add.image(MAP_W / 2, MAP_H / 2, 'map-bitmap').setDepth(0);
 
