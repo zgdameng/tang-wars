@@ -1,4 +1,4 @@
-import { gridToScreen } from './iso-renderer.js';
+import { gridToPixel } from './map-bitmap.js';
 
 let containerEl = null;
 const markers = []; // { cityId, el, circle }
@@ -25,7 +25,7 @@ export function createCityMarkers(scene, cities, factions) {
   }
 
   for (const city of Object.values(cities)) {
-    const { x, y } = gridToScreen(city.x, city.y);
+    const { x, y } = gridToPixel(city.x, city.y);
     const faction = factions[city.owner];
     const cityColor = faction ? colorToHex(faction.color) : '#888888';
 
