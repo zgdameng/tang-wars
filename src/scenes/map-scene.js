@@ -115,9 +115,11 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头居中（地图正中）
-    const cam = this.cameras.main;
-    cam.centerOn(MAP_W / 2, MAP_H / 2);
+    // 手动置镜头到地图正中央
+    cam.setScroll(
+      MAP_W / 2 - cam.width / (2 * cam.zoom),
+      MAP_H / 2 - cam.height / (2 * cam.zoom)
+    );
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
@@ -150,27 +152,23 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
     });
 
-    // DOM 原生滚轮缩放（比 Phaser wheel 可靠），缩放中心 = 鼠标位置
+    // DOM 原生滚轮缩放，缩放中心 = 鼠标指针位置
     this._onWheel = (e) => {
       e.preventDefault();
-      const canvas = this.sys.game.canvas;
-      const rect = canvas.getBoundingClientRect();
-      // 鼠标在游戏画布内的坐标
-      const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const ptr = this.input.activePointer;
 
-      // 缩放前鼠标下的世界坐标
+      // 缩放前指针下的世界坐标
       const worldPre = { x: 0, y: 0 };
-      cam.getWorldPoint(mx, my, worldPre);
+      cam.getWorldPoint(ptr.x, ptr.y, worldPre);
 
       const newZoom = Phaser.Math.Clamp(cam.zoom - e.deltaY * 0.0008, 0.25, 2.5);
       cam.setZoom(newZoom);
 
-      // 缩放后鼠标位置对应的世界坐标
+      // 缩放后同一屏幕位置对应的世界坐标
       const worldPost = { x: 0, y: 0 };
-      cam.getWorldPoint(mx, my, worldPost);
+      cam.getWorldPoint(ptr.x, ptr.y, worldPost);
 
-      // 补偿偏移，让鼠标位置保持指向缩放前那个世界点
+      // 补偿偏移——让指针下仍是缩放前那个世界点
       cam.scrollX += worldPre.x - worldPost.x;
       cam.scrollY += worldPre.y - worldPost.y;
     };
