@@ -3,6 +3,7 @@ import { createGameState } from '../logic/game-state.js';
 import { loadGameData } from '../logic/data-loader.js';
 import { generateMapBitmap, gridToPixel, MAP_W, MAP_H } from '../rendering/map-bitmap.js';
 import { createCityMarkers, updateCityLabelPositions, destroyCityMarkers } from '../rendering/city-marker.js';
+import { createArmyMarkers, updateArmyPositions, refreshArmyMarkers, destroyArmyMarkers } from '../rendering/army-marker.js';
 import { showCityPanel, hideCityPanel } from './city-panel.js';
 import { executeTurn } from '../logic/turn.js';
 import { createTurnPanel, setTurnDisplay, removeTurnPanel } from '../ui/turn-panel.js';
@@ -35,6 +36,9 @@ export class MapScene extends Phaser.Scene {
     // 放城池标记（圆点 + DOM 标签）
     createCityMarkers(this, this.gameState.cities, this.gameState.factions);
 
+    // 放部队标记（三角箭头 + 人数标签）
+    createArmyMarkers(this, this.gameState.armies, this.gameState.factions);
+
     // 相机：有边界 + 拖拽平移 + 滚轮缩放
     this.setupCamera();
 
@@ -47,6 +51,16 @@ export class MapScene extends Phaser.Scene {
       showCityPanel(city, faction, governor, this.gameState);
     });
 
+    // 部队点击 → 显示部队信息
+    this.events.on('army-clicked', (armyId) => {
+      const army = this.gameState.armies[armyId];
+      if (!army) return;
+      const faction = this.gameState.factions[army.factionId];
+      const total = army.units.reduce((s, u) => s + u.count, 0);
+      const unitList = army.units.map(u => `${u.type === 'infantry' ? '步兵' : u.type === 'cavalry' ? '骑兵' : '弓兵'}×${u.count}`).join('，');
+      alert(`${faction ? faction.name : '未知'}部队\n兵力：${total} 人\n编组：${unitList}\n状态：${army.state === 'idle' ? '待命' : army.state === 'moving' ? '行军中' : army.state}`);
+    });
+
     // 切走场景时清理
     this.events.on('shutdown', () => {
       hideCityPanel();
@@ -54,6 +68,7 @@ export class MapScene extends Phaser.Scene {
       hideSavePanel();
       removeTurnPanel();
       destroyCityMarkers();
+      destroyArmyMarkers();
       this.removeDomButton('diplomacy-btn');
       this.removeDomButton('save-btn');
       // 清理 DOM 滚轮监听
@@ -72,6 +87,8 @@ export class MapScene extends Phaser.Scene {
       const result = executeTurn(this.gameState);
       setTurnDisplay(result.turn);
       saveGame(this.gameState, 1, '自动存档');
+      // 回合后刷新部队显示（可能有新征兵/AI出兵）
+      refreshArmyMarkers(this, this.gameState.armies, this.gameState.factions);
 
       if (result.encounters && result.encounters.length > 0) {
         this.pendingEncounter = result.encounters[0];
@@ -108,6 +125,7 @@ export class MapScene extends Phaser.Scene {
   // 每帧更新 DOM 标签（跟随镜头）
   update() {
     updateCityLabelPositions(this.cameras.main);
+    updateArmyPositions(this.cameras.main, this.gameState.armies);
   }
 
   // 相机：限制在地图范围内，支持拖拽平移 + 滚轮缩放（聚焦鼠标位置）
