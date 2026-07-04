@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createGameState } from '../logic/game-state.js';
 import { loadGameData } from '../logic/data-loader.js';
-import { generateMapBitmap, gridToPixel, MAP_W, MAP_H } from '../rendering/map-bitmap.js';
+import { generateMapBitmap, gridToPixel, MAP_W, MAP_H, WORLD_OX, WORLD_OY } from '../rendering/map-bitmap.js';
 import { createCityMarkers, updateCityLabelPositions, destroyCityMarkers } from '../rendering/city-marker.js';
 import { createArmyMarkers, updateArmyPositions, refreshArmyMarkers, destroyArmyMarkers } from '../rendering/army-marker.js';
 import { showCityPanel, hideCityPanel } from './city-panel.js';
@@ -31,7 +31,7 @@ export class MapScene extends Phaser.Scene {
     // 生成三国志风格整张地图（Canvas 位图 → Phaser 纹理 → Image）
     const bitmap = generateMapBitmap(this.gameState);
     const tex = this.textures.addCanvas('map-bitmap', bitmap);
-    this.add.image(MAP_W / 2, MAP_H / 2, 'map-bitmap').setDepth(0);
+    this.add.image(MAP_W / 2 + WORLD_OX, MAP_H / 2 + WORLD_OY, 'map-bitmap').setDepth(0);
 
     // 放城池标记（圆点 + DOM 标签）
     createCityMarkers(this, this.gameState.cities, this.gameState.factions);
@@ -115,11 +115,8 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头居中——先设 bounds 允许负数，再直接赋 scrollX/Y
-    const margin = 2000;
-    this.cameras.main.setBounds(-margin, -margin, MAP_W + margin * 2, MAP_H + margin * 2);
-    this.cameras.main.scrollX = MAP_W / 2 - this.cameras.main.width / (2 * this.cameras.main.zoom);
-    this.cameras.main.scrollY = MAP_H / 2 - this.cameras.main.height / (2 * this.cameras.main.zoom);
+    // 镜头归零（世界已偏移，地图自然居中）
+    this.cameras.main.setScroll(0, 0);
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);

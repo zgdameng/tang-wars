@@ -14,8 +14,13 @@ export const CELL_W = MAP_W / 30;
 export const CELL_H = MAP_H / 30;
 const S_W = 800, S_H = 667;
 
+// 世界偏移量——让地图在镜头(0,0)时自然居中于屏幕
+// (视口半宽 / 初始缩放) - 地图半宽 = (1280/2/0.342) - 1200 ≈ 671
+export const WORLD_OX = 671;
+export const WORLD_OY = 53;
+
 export function gridToPixel(col, row) {
-  return { x: Math.round(col * CELL_W + CELL_W / 2), y: Math.round(row * CELL_H + CELL_H / 2) };
+  return { x: Math.round(col * CELL_W + CELL_W / 2 + WORLD_OX), y: Math.round(row * CELL_H + CELL_H / 2 + WORLD_OY) };
 }
 
 // ============================================================
@@ -481,31 +486,33 @@ function paintForests(ctx) {
 // ============================================================
 function paintCities(ctx, state) {
   for (const city of Object.values(state.cities)) {
-    const pos = gridToPixel(city.x, city.y);
+    // 用原始坐标（不加 WORLD_OFFSET），因为画在大图 canvas 上
+    const px = Math.round(city.x * CELL_W + CELL_W / 2);
+    const py = Math.round(city.y * CELL_H + CELL_H / 2);
     const faction = state.factions[city.owner];
     const hex = faction && faction.color ? '#' + faction.color.toString(16).padStart(6, '0') : '#888888';
 
     // 发光底圈
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.arc(pos.x + 1, pos.y + 2, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + 1, py + 2, 11, 0, Math.PI * 2); ctx.fill();
 
     // 城池圆
     ctx.fillStyle = hex;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.stroke();
 
     // 内圈高光
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.beginPath(); ctx.arc(pos.x - 2, pos.y - 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px - 2, py - 2, 3.5, 0, Math.PI * 2); ctx.fill();
 
     // 城名（白字黑边）
     ctx.font = 'bold 15px "Microsoft YaHei","SimHei",sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.strokeStyle = '#000000'; ctx.lineWidth = 3.5;
-    ctx.strokeText(city.name, pos.x, pos.y - 13);
+    ctx.strokeText(city.name, px, py - 13);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(city.name, pos.x, pos.y - 13);
+    ctx.fillText(city.name, px, py - 13);
   }
 }
 
