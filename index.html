@@ -13,7 +13,7 @@
     #rotate-hint {
       display: none;
       position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-      z-index: 9999; pointer-events: none;
+      z-index: 9999; cursor: pointer;
       background: rgba(10,10,26,0.92); border: 1px solid #665522;
       border-radius: 10px; padding: 12px 24px;
       color: #ccaa44;
@@ -24,19 +24,25 @@
     #rotate-hint.show { opacity: 1; }
     #rotate-hint svg { width: 28px; height: 28px; fill: #ccaa44; vertical-align: middle; margin-right: 6px; }
   </style>
-  <script type="module" crossorigin src="./assets/index-BJDa0Im9.js"></script>
+  <script type="module" crossorigin src="./assets/index-DIP4yYdV.js"></script>
 </head>
 <body>
   <!-- 竖屏时底部小横幅提示，3秒自动消失，不挡游戏 -->
   <div id="rotate-hint">
     <svg viewBox="0 0 24 24"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 19.29 0 13.97 0l-.19.01 3.17 3.17-1.47-0.66zm-6.25-.77c-.59.28-1.14.62-1.64 1.01L10.48 4.6c.38-.28.78-.52 1.2-.72L10.23 1.75zm1.5 18.56c-3.27-1.55-5.61-4.72-5.97-8.48H4.26C4.56 19.16 8.71 24 14.03 24l.19-.01-3.17-3.17 1.47.69zM3.02 4.77L1.75 6.04 0 4.29v6.19h6.19L4.35 8.64l1.27-1.27C6.57 6.02 7.83 5.18 9.27 4.7L7.39 2.83c-1.59.55-3.02 1.45-4.37 1.94z"/></svg>
-    横屏体验更佳
+    横屏体验更佳（点击关闭）
+    <br><span style="font-size:12px;color:#998866;">如无法横屏，请关闭手机"旋转锁定"</span>
   </div>
   <div id="game-container"></div>
   <script>
     // 小横幅：只在竖屏时出现3秒，不遮挡游戏
     (function(){
       var hint = document.getElementById('rotate-hint');
+      // 点击即可关闭
+      hint.addEventListener('click', function(){
+        hint.classList.remove('show');
+        setTimeout(function(){ hint.style.display = 'none'; }, 500);
+      });
       function show(){
         if (window.innerWidth > window.innerHeight) return; // 已是横屏，不提示
         hint.style.display = 'block';

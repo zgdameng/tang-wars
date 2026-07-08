@@ -6360,25 +6360,26 @@ return new `+this.key+`();
  */p.exports={Format:t(27902),Pad:t(41836),RemoveAt:t(33628),Reverse:t(27671),UppercaseFirst:t(35355),UUID:t(45650)}}},W={};function K(p){var S=W[p];if(S!==void 0)return S.exports;var t=W[p]={exports:{}};return H[p](t,t.exports,K),t.exports}K.g=function(){if(typeof globalThis=="object")return globalThis;try{return this||new Function("return this")()}catch{if(typeof window=="object")return window}}();var $=K(85454);return $})())})(Ke);var Si=Ke.exports;const Nt=Ti(Si);class Ci extends Nt.Scene{constructor(){super({key:"BootScene"})}preload(){const X=this.cameras.main.width,H=this.cameras.main.height,W=this.add.graphics();this.load.on("progress",K=>{W.clear(),W.fillStyle(13412932,1),W.fillRect(X/2-150,H/2-10,300*K,20)})}create(){this.scene.start("MenuScene")}}const Ze=[{id:"li-keyong",name:"李克用",color:16711680,gold:8e3,prestige:600,homeCity:"taiyuan",aiDifficulty:4,isHuman:!0},{id:"zhu-wen",name:"朱温",color:255,gold:1e4,prestige:500,homeCity:"bianzhou",aiDifficulty:4},{id:"li-maozhen",name:"李茂贞",color:16776960,gold:5e3,prestige:400,homeCity:"fengxiang",aiDifficulty:3},{id:"yang-xingmi",name:"杨行密",color:65280,gold:9e3,prestige:450,homeCity:"yangzhou",aiDifficulty:3},{id:"wang-jian",name:"王建",color:16753920,gold:4e3,prestige:350,homeCity:"chengdu",aiDifficulty:2},{id:"qian-liu",name:"钱镠",color:16711935,gold:6e3,prestige:350,homeCity:"hangzhou",aiDifficulty:2},{id:"ind-minor-1",name:"卢龙军",color:8421504,gold:2e3,prestige:200,homeCity:"youzhou",aiDifficulty:1},{id:"ind-minor-2",name:"成德军",color:12632256,gold:2e3,prestige:200,homeCity:"zhenzhou",aiDifficulty:1},{id:"ind-minor-3",name:"魏博军",color:12632256,gold:3e3,prestige:250,homeCity:"weizhou",aiDifficulty:1}];let Ot=null;function Ei(){return Ot||(Ot=document.createElement("div"),Ot.id="faction-select",Ot.style.cssText=`
     display: none;
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 620px; background: rgba(15, 15, 30, 0.96); border: 2px solid #665522;
-    border-radius: 8px; padding: 20px; color: #ddd;
+    width: 620px; max-width: 96vw; max-height: 92vh; overflow-y: auto;
+    background: rgba(15, 15, 30, 0.96); border: 2px solid #665522;
+    border-radius: 8px; padding: 16px; color: #ddd;
     font-family: 'Microsoft YaHei', sans-serif; z-index: 1000; user-select: none;
-  `,document.body.appendChild(Ot),Ot)}function Ai(w){const X=Ei(),H=$=>"#"+$.toString(16).padStart(6,"0");let W="";for(const $ of Ze){const p=H($.color);W+=`
-      <div class="faction-card" data-fid="${$.id}" style="
+  `,document.body.appendChild(Ot),Ot)}function Ai(w){const X=Ei(),H=p=>"#"+p.toString(16).padStart(6,"0");let W="";for(const p of Ze){const S=H(p.color);W+=`
+      <div class="faction-card" data-fid="${p.id}" style="
         background: #1a1a30; border: 2px solid #333355; border-radius: 6px;
         padding: 12px; cursor: pointer; text-align: center;
         transition: border-color 0.2s;
-      " onmouseenter="this.style.borderColor='${p}'" onmouseleave="this.style.borderColor='#333355'">
-        <div style="width:72px;height:48px;background:${p};border-radius:6px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center"><span style="font-size:28px;color:#fff;font-weight:bold;text-shadow:0 0 6px #000">${$.name[0]}</span></div>
-        <div style="font-size:18px;color:#ccaa44;font-weight:bold">${$.name}</div>
+      " onmouseenter="this.style.borderColor='${S}'" onmouseleave="this.style.borderColor='#333355'">
+        <div style="width:72px;height:48px;background:${S};border-radius:6px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center"><span style="font-size:28px;color:#fff;font-weight:bold;text-shadow:0 0 6px #000">${p.name[0]}</span></div>
+        <div style="font-size:18px;color:#ccaa44;font-weight:bold">${p.name}</div>
         <div style="font-size:12px;color:#888;margin-top:4px">
-          💰${$.gold.toLocaleString()} · 👑${$.prestige}
+          💰${p.gold.toLocaleString()} · 👑${p.prestige}
         </div>
-      </div>`}X.innerHTML=`
+      </div>`}const K=window.innerWidth<500?2:3;X.innerHTML=`
     <div style="font-size:22px;color:#ccaa44;font-weight:bold;margin-bottom:16px;text-align:center">
       选择势力
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(${K},1fr);gap:10px">
       ${W}
     </div>
     <div style="margin-top:16px;text-align:right">
@@ -6387,7 +6388,7 @@ return new `+this.key+`();
         border-radius:4px;cursor:pointer;font-size:14px
       ">返回</button>
     </div>
-  `,X.querySelectorAll(".faction-card").forEach($=>{$.onclick=()=>{const p=$.getAttribute("data-fid");X.style.display="none",w&&w(p)}}),document.getElementById("btn-faction-close").onclick=$e,X.style.display="block"}function $e(){Ot&&(Ot.style.display="none")}const Ft={BASE_TAX_RATE:.3,BASE_POP_GROWTH:.01,ARMY_UPKEEP_PER_UNIT:2,RELATION_MIN:-100,RELATION_MAX:100,PRESTIGE_MAX:1e3,SAVE_SLOTS:5,NEW_OWNER_STABILITY:50,AI_ECONOMY_EFFICIENCY:[.6,.8,1,1,1]},ve="tang-wars-saves";function Se(w,X,H,W=ve){if(X<1||X>Ft.SAVE_SLOTS)return{success:!1,slot:X,name:H,turn:w.turn,error:`存档位必须在 1~${Ft.SAVE_SLOTS} 之间`};const K={slot:X,name:H,turn:w.turn,phase:w.phase,playerFactionId:w.playerFactionId,cities:w.cities,factions:w.factions,generals:w.generals,armies:w.armies,turnLog:w.turnLog,savedAt:new Date().toISOString()};try{const $=ce(W);return $[X]=K,localStorage.setItem(W,JSON.stringify($)),{success:!0,slot:X,name:H,turn:w.turn}}catch($){return{success:!1,slot:X,name:H,turn:w.turn,error:"保存失败："+$.message}}}function Mi(w,X=ve){return ce(X)[w]||null}function Je(w=ve){const X=ce(w);return Object.values(X).filter(Boolean).map(H=>({slot:H.slot,name:H.name,turn:H.turn,savedAt:H.savedAt})).sort((H,W)=>H.slot-W.slot)}function Pi(w,X=ve){const H=ce(X);delete H[w],localStorage.setItem(X,JSON.stringify(H))}function ce(w){try{const X=localStorage.getItem(w);return X?JSON.parse(X):{}}catch{return{}}}let xt=null,Pe=null,$t=null,re=null;function Qe(){return xt||(xt=document.createElement("div"),xt.id="save-panel",xt.style.cssText=`
+  `,X.querySelectorAll(".faction-card").forEach(p=>{p.onclick=()=>{const S=p.getAttribute("data-fid");X.style.display="none",w&&w(S)}}),document.getElementById("btn-faction-close").onclick=$e,X.style.display="block"}function $e(){Ot&&(Ot.style.display="none")}const Ft={BASE_TAX_RATE:.3,BASE_POP_GROWTH:.01,ARMY_UPKEEP_PER_UNIT:2,RELATION_MIN:-100,RELATION_MAX:100,PRESTIGE_MAX:1e3,SAVE_SLOTS:5,NEW_OWNER_STABILITY:50,AI_ECONOMY_EFFICIENCY:[.6,.8,1,1,1]},ve="tang-wars-saves";function Se(w,X,H,W=ve){if(X<1||X>Ft.SAVE_SLOTS)return{success:!1,slot:X,name:H,turn:w.turn,error:`存档位必须在 1~${Ft.SAVE_SLOTS} 之间`};const K={slot:X,name:H,turn:w.turn,phase:w.phase,playerFactionId:w.playerFactionId,cities:w.cities,factions:w.factions,generals:w.generals,armies:w.armies,turnLog:w.turnLog,savedAt:new Date().toISOString()};try{const $=ce(W);return $[X]=K,localStorage.setItem(W,JSON.stringify($)),{success:!0,slot:X,name:H,turn:w.turn}}catch($){return{success:!1,slot:X,name:H,turn:w.turn,error:"保存失败："+$.message}}}function Mi(w,X=ve){return ce(X)[w]||null}function Je(w=ve){const X=ce(w);return Object.values(X).filter(Boolean).map(H=>({slot:H.slot,name:H.name,turn:H.turn,savedAt:H.savedAt})).sort((H,W)=>H.slot-W.slot)}function Pi(w,X=ve){const H=ce(X);delete H[w],localStorage.setItem(X,JSON.stringify(H))}function ce(w){try{const X=localStorage.getItem(w);return X?JSON.parse(X):{}}catch{return{}}}let xt=null,Pe=null,$t=null,re=null;function Qe(){return xt||(xt=document.createElement("div"),xt.id="save-panel",xt.style.cssText=`
     display: none;
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 480px; background: rgba(15, 15, 30, 0.96); border: 2px solid #665522;
