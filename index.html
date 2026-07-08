@@ -23,8 +23,15 @@
     }
     #rotate-hint.show { opacity: 1; }
     #rotate-hint svg { width: 28px; height: 28px; fill: #ccaa44; vertical-align: middle; margin-right: 6px; }
+    /* toast 弹出/消失动画 */
+    @keyframes toastFade {
+      0% { opacity:0; transform:translateX(-50%) translateY(20px); }
+      15% { opacity:1; transform:translateX(-50%) translateY(0); }
+      75% { opacity:1; transform:translateX(-50%) translateY(0); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-10px); }
+    }
   </style>
-  <script type="module" crossorigin src="./assets/index-Bn7O5o5F.js"></script>
+  <script type="module" crossorigin src="./assets/index-Kv5ZCDt1.js"></script>
 </head>
 <body>
   <!-- 竖屏时底部小横幅提示，3秒自动消失，不挡游戏 -->
