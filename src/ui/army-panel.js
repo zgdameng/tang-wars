@@ -17,7 +17,7 @@ function getPanel() {
   panelEl.id = 'army-panel';
   panelEl.style.cssText = `
     display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:440px; max-height:70vh; overflow-y:auto;
+    width: min(440px, 95vw); max-height: 85vh; overflow-y: auto;
     background:rgba(247,242,232,0.97); border:2px solid #D4C5A0;
     border-radius:8px; padding:16px; color:#3D2B1F;
     font-family:'Microsoft YaHei',sans-serif; z-index:1000; user-select:none;
@@ -125,12 +125,37 @@ function bindMoveButtons(army, state) {
     btn.onclick = () => {
       const tx = parseInt(btn.dataset.cx);
       const ty = parseInt(btn.dataset.cy);
+      const cityId = btn.dataset.cid;
+      const targetCity = state.cities[cityId];
+      const targetName = targetCity ? targetCity.name : `(${tx},${ty})`;
+      const isEnemy = targetCity && targetCity.owner &&
+        (state.factions[state.playerFactionId]?.atWarWith || []).includes(targetCity.owner);
+      const actionName = isEnemy ? '攻城' : '行军';
+
       const result = moveArmy(state, army.id, tx, ty);
       if (result) {
         hideArmyPanel();
+        // toast 提示，让玩家知道部队已出发
+        showToast(`部队已「${actionName}」出发 → ${targetName}，预计 ${result.turns} 回合到达`);
       } else {
-        alert('行军失败：部队可能已在移动中');
+        showToast('行军失败：部队可能已在移动中');
       }
     };
   });
+}
+
+/** 底部 toast 提示 */
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+    background:rgba(247,242,232,0.97); border:1px solid #D4C5A0;
+    border-radius:8px; padding:10px 24px; color:#3D2B1F;
+    font-family:'KaiTi','STKaiti','Microsoft YaHei',serif; z-index:2000;
+    font-size:14px; pointer-events:none;
+    animation:toastFade 3s ease forwards;
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3100);
 }
