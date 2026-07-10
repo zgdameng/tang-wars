@@ -16,26 +16,29 @@ export class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.encounter = data;
+    // data 可能是 { encounter: {...} } 包装对象，解包取出真正的遭遇战数据
+    this.encounter = data.encounter || data;
   }
 
   create() {
     const W = 1024, H = 768;
     this.cameras.main.setBackgroundColor('#1a2218');
 
-    const { attacker, defender, terrain, isSiege } = this.encounter;
+    const enc = this.encounter;
+    // 兼容两种命名：isSiege（布尔）或 type（'siege'/'field'）
+    const isSiege = enc.isSiege || enc.type === 'siege';
 
     this.battle = createBattleState({
-      terrain: terrain || 'plains',
+      terrain: enc.terrain || 'plains',
       isSiege: !!isSiege,
-      attackerFactionId: attacker.factionId,
-      attackerGeneralId: attacker.generalId,
-      attackerUnits: attacker.units,
-      defenderFactionId: isSiege ? defender.owner : defender.factionId,
-      defenderGeneralId: defender.generalId,
+      attackerFactionId: enc.attacker.factionId,
+      attackerGeneralId: enc.attacker.generalId,
+      attackerUnits: enc.attacker.units,
+      defenderFactionId: isSiege ? enc.defender.owner : enc.defender.factionId,
+      defenderGeneralId: enc.defender.generalId,
       defenderUnits: isSiege
         ? [{ type: 'infantry', count: 2000, morale: 80, exp: 0 }]
-        : defender.units,
+        : enc.defender.units,
     });
 
     // 背景——地形示意
@@ -145,8 +148,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createHUD(W) {
-    const atkFaction = this.encounter.attacker.factionId || '攻方';
-    const defFaction = this.encounter.defender.factionId || '守方';
+    const enc = this.encounter;
+    const atkFid = enc.attacker.factionId || '攻方';
+    // 守方可能是城池（有 owner）或部队（有 factionId）
+    const defFid = enc.defender.owner || enc.defender.factionId || '守方';
     const terrainName = TERRAIN_NAMES[this.battle.terrain] || '平原';
     const battleType = this.battle.isSiege ? '🏰 攻城战' : '⚔️ 野战';
 
@@ -155,12 +160,12 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: '"Microsoft YaHei",sans-serif'
     }).setOrigin(0.5);
 
-    this.add.text(20, 10, `🔴 ${atkFaction}`, {
+    this.add.text(20, 10, `🔴 ${atkFid}`, {
       fontSize: '14px', color: '#ff8888', stroke: '#000', strokeThickness: 2,
       fontFamily: '"Microsoft YaHei",sans-serif'
     });
 
-    this.add.text(W - 20, 10, `🔵 ${defFaction}`, {
+    this.add.text(W - 20, 10, `🔵 ${defFid}`, {
       fontSize: '14px', color: '#8888ff', stroke: '#000', strokeThickness: 2,
       fontFamily: '"Microsoft YaHei",sans-serif'
     }).setOrigin(1, 0);
