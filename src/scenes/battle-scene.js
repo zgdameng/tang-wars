@@ -220,7 +220,9 @@ export class BattleScene extends Phaser.Scene {
       unit.attackCooldown = (unit.attackCooldown || 0) - simDt;
       if (unit.attackCooldown <= 0 && closestDist < 70) {
         const dmg = getDamage(unit, closest);
-        closest.count = Math.max(0, closest.count - Math.floor(dmg / 10));
+        // 保底至少扣 1 兵，避免小部队打大城伤害被抹零
+        const countLoss = Math.max(1, Math.floor(dmg / 10));
+        closest.count = Math.max(0, closest.count - countLoss);
         unit.attackCooldown = 1.5;
 
         // 击中闪白

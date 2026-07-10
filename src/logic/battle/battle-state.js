@@ -43,7 +43,7 @@ export function createBattleState(opts) {
       siegeBonus: opts.isSiege ? 5 : 0  // 守城方额外防御
     },
     time: 0,           // 已战斗时间（秒）
-    maxTime: 300,      // 5 分钟上限，超时判守方胜
+    maxTime: 45,       // 45 秒上限，超时判守方胜（模拟时间，实际约 15-45 秒）
     events: [],
     winner: null
   };
@@ -55,17 +55,18 @@ export function createBattleState(opts) {
  * @returns {string|null} 'attacker' | 'defender' | null（未结束）
  */
 export function checkBattleEnd(battle) {
+  // 用 count（兵数）判断存活，因为战斗中只扣 count 不扣 hp
   const atkAlive = battle.attacker.units.some(
-    u => u.hp > 0 && u.morale > 0
+    u => u.count > 0 && u.morale > 0
   );
   const defAlive = battle.defender.units.some(
-    u => u.hp > 0 && u.morale > 0
+    u => u.count > 0 && u.morale > 0
   );
 
   if (!atkAlive) return 'defender';
   if (!defAlive) return 'attacker';
 
-  // 超时：奔袭不利攻方，判守方胜
+  // 超时 45 秒（模拟时间），奔袭不利攻方，判守方胜
   if (battle.time >= battle.maxTime) return 'defender';
 
   return null;
