@@ -18,8 +18,8 @@ function getPanel() {
   panelEl.style.cssText = `
     display: none;
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 480px; background: rgba(15, 15, 30, 0.96); border: 2px solid #665522;
-    border-radius: 8px; padding: 18px; color: #ddd;
+    width: 480px; background: rgba(247,242,232,0.97); border: 2px solid #D4C5A0;
+    border-radius: 8px; padding: 18px; color: #3D2B1F;
     font-family: 'Microsoft YaHei', sans-serif; z-index: 1000; user-select: none;
   `;
   document.body.appendChild(panelEl);
@@ -62,26 +62,26 @@ function renderContent() {
       let actionBtns = '';
       if (mode === 'load') {
         actionBtns = `<button data-load="${slot}" style="
-          padding:3px 12px;background:#2a4a2a;color:#8c8;border:1px solid #484;
+          padding:3px 12px;background:#4A6B8A;color:#F7F2E8;border:1px solid #3A5A7A;
           border-radius:3px;cursor:pointer;font-size:12px">读取</button>`;
       } else {
         actionBtns = `
           <button data-overwrite="${slot}" style="
-            padding:3px 10px;background:#2a3a4a;color:#8ac;border:1px solid #468;
+            padding:3px 10px;background:#C43A30;color:#F7F2E8;border:1px solid #A83227;
             border-radius:3px;cursor:pointer;font-size:12px;margin-right:4px">覆盖</button>
           <button data-delete="${slot}" style="
-            padding:3px 10px;background:#4a2a2a;color:#c88;border:1px solid #844;
+            padding:3px 10px;background:#B8960C;color:#F7F2E8;border:1px solid #9A7E0A;
             border-radius:3px;cursor:pointer;font-size:12px">删除</button>`;
       }
 
       rowsHtml += `
         <div style="display:flex;align-items:center;justify-content:space-between;
-          background:#1a1a30;border:1px solid #333355;border-radius:6px;
+          background:#F0E8D8;border:1px solid #D4C5A0;border-radius:6px;
           padding:10px 14px">
-          <span style="color:#ccaa44;font-weight:bold;min-width:40px">[${slot}]</span>
+          <span style="color:#3D2B1F;font-weight:bold;min-width:40px">[${slot}]</span>
           <span style="flex:1;margin-left:12px;font-size:14px">${info.name}</span>
-          <span style="color:#888;margin:0 12px;font-size:12px">${turnStr}</span>
-          <span style="color:#666;margin-right:12px;font-size:11px">${dateStr}</span>
+          <span style="color:#6B5B4F;margin:0 12px;font-size:12px">${turnStr}</span>
+          <span style="color:#6B5B4F;margin-right:12px;font-size:11px">${dateStr}</span>
           ${actionBtns}
         </div>`;
     } else {
@@ -89,22 +89,22 @@ function renderContent() {
       if (mode === 'load') {
         rowsHtml += `
           <div style="display:flex;align-items:center;
-            background:#1a1a30;border:1px dashed #333355;border-radius:6px;
-            padding:10px 14px;color:#555">
-            <span style="min-width:40px;color:#555">[${slot}]</span>
+            background:#F0E8D8;border:1px dashed #D4C5A0;border-radius:6px;
+            padding:10px 14px;color:#6B5B4F">
+            <span style="min-width:40px;color:#6B5B4F">[${slot}]</span>
             <span style="margin-left:12px">空</span>
           </div>`;
       } else {
         rowsHtml += `
           <div style="display:flex;align-items:center;
-            background:#1a1a30;border:1px dashed #333355;border-radius:6px;
+            background:#F0E8D8;border:1px dashed #D4C5A0;border-radius:6px;
             padding:10px 14px">
-            <span style="color:#555;min-width:40px">[${slot}]</span>
+            <span style="color:#6B5B4F;min-width:40px">[${slot}]</span>
             <input type="text" id="save-name-${slot}" placeholder="输入存档名"
-              style="flex:1;margin:0 12px;padding:4px 8px;background:#111;color:#ddd;
-              border:1px solid #444;border-radius:3px;font-size:13px;font-family:inherit">
+              style="flex:1;margin:0 12px;padding:4px 8px;background:#F7F2E8;color:#3D2B1F;
+              border:1px solid #D4C5A0;border-radius:3px;font-size:13px;font-family:inherit">
             <button data-save-new="${slot}" style="
-              padding:3px 14px;background:#2a4a2a;color:#8c8;border:1px solid #484;
+              padding:3px 14px;background:#C43A30;color:#F7F2E8;border:1px solid #A83227;
               border-radius:3px;cursor:pointer;font-size:12px">保存</button>
           </div>`;
       }
@@ -112,10 +112,10 @@ function renderContent() {
   }
 
   panelEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #665522;padding-bottom:10px">
-      <span style="font-size:22px;color:#ccaa44;font-weight:bold">${title}</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #D4C5A0;padding-bottom:10px">
+      <span style="font-size:22px;color:#C43A30;font-weight:bold;font-family:'KaiTi','STKaiti',serif">${title}</span>
       <button id="btn-save-close" style="
-        padding:6px 22px;background:#443322;color:#ccaa44;border:1px solid #665522;
+        padding:6px 22px;background:#D4C5A0;color:#3D2B1F;border:1px solid #B8960C;
         border-radius:4px;cursor:pointer;font-size:14px">关闭</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">

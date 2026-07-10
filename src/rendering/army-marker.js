@@ -30,16 +30,22 @@ export function createArmyMarkers(scene, armies, factions) {
     sprite.setDepth(15);
     sprite.setInteractive({ useHandCursor: true });
     sprite.armyId = army.id;
-    sprite.on('pointerdown', () => scene.events.emit('army-clicked', army.id));
+    // 按下记录起点，抬手判断移动距离 < 8px 才算点击（避免拖拽地图时误触）
+    sprite.on('pointerdown', (pointer) => { sprite._tapX = pointer.x; sprite._tapY = pointer.y; });
+    sprite.on('pointerup', (pointer) => {
+      const dx = pointer.x - (sprite._tapX ?? pointer.x);
+      const dy = pointer.y - (sprite._tapY ?? pointer.y);
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) scene.events.emit('army-clicked', army.id);
+    });
 
     // 人数标签
     const totalCount = army.units.reduce((s, u) => s + u.count, 0);
     const el = document.createElement('div');
     el.style.cssText = `
-      position:absolute; font-size:11px; font-weight:bold; color:#fff;
-      text-shadow:0 0 3px #000, 0 0 3px #000;
+      position:absolute; font-size:11px; font-weight:bold; color:#3D2B1F;
+      text-shadow:0 0 2px #F0E8D8, 0 0 2px #F0E8D8;
       transform:translate(-50%,-50%); white-space:nowrap;
-      background:rgba(10,8,0,0.7); padding:1px 5px; border-radius:2px;
+      background:rgba(247,242,232,0.82); padding:1px 5px; border-radius:2px;
     `;
     el.textContent = `${totalCount}兵`;
     containerEl.appendChild(el);

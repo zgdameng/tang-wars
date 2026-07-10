@@ -14,9 +14,9 @@ export function createTurnPanel(onEndTurn) {
   panelEl.style.cssText = `
     position: fixed; bottom: 16px; right: 16px;
     display: flex; align-items: center; gap: 12px;
-    background: rgba(15, 15, 30, 0.92); border: 1px solid #665522;
-    border-radius: 6px; padding: 10px 18px; color: #ccaa44;
-    font-family: 'Microsoft YaHei', sans-serif; z-index: 500;
+    background: rgba(247,242,232,0.94); border: 1px solid #D4C5A0;
+    border-radius: 6px; padding: 10px 18px; color: #3D2B1F;
+    font-family: 'KaiTi','STKaiti','Microsoft YaHei',sans-serif; z-index: 500;
   `;
 
   turnLabel = document.createElement('span');
@@ -27,12 +27,12 @@ export function createTurnPanel(onEndTurn) {
   const btn = document.createElement('button');
   btn.textContent = '结束回合';
   btn.style.cssText = `
-    padding: 6px 18px; background: #443322; color: #ccaa44;
-    border: 1px solid #665522; border-radius: 4px;
-    cursor: pointer; font-size: 14px;
+    padding: 6px 18px; background: #C43A30; color: #F7F2E8;
+    border: 1px solid #A83227; border-radius: 4px;
+    cursor: pointer; font-size: 14px; font-family: inherit;
   `;
-  btn.onmouseenter = () => { btn.style.background = '#554433'; };
-  btn.onmouseleave = () => { btn.style.background = '#443322'; };
+  btn.onmouseenter = () => { btn.style.background = '#A83227'; };
+  btn.onmouseleave = () => { btn.style.background = '#C43A30'; };
   btn.onclick = onEndTurn;
 
   panelEl.appendChild(turnLabel);

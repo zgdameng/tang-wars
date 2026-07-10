@@ -17,8 +17,8 @@ function getPanel() {
   panelEl.style.cssText = `
     display: none;
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 580px; background: rgba(15, 15, 30, 0.96); border: 2px solid #665522;
-    border-radius: 8px; padding: 18px; color: #ddd;
+    width: 580px; background: rgba(247,242,232,0.97); border: 2px solid #D4C5A0;
+    border-radius: 8px; padding: 18px; color: #3D2B1F;
     font-family: 'Microsoft YaHei', sans-serif; z-index: 1000; user-select: none;
   `;
   document.body.appendChild(panelEl);
@@ -37,9 +37,9 @@ function getStatus(playerId, otherId, state) {
 
 /** 关系值对应的颜色 */
 function relationColor(val) {
-  if (val > 20) return '#55aa55';
-  if (val < -20) return '#cc5555';
-  return '#ccaa44';
+  if (val > 20) return '#4A6B8A';
+  if (val < -20) return '#C43A30';
+  return '#B8960C';
 }
 
 /** 颜色整数转 CSS 十六进制 */
@@ -71,10 +71,10 @@ function renderContent() {
     // 状态标签
     let statusBadge = '';
     switch (status) {
-      case 'self': statusBadge = '<span style="color:#ccaa44">👤 玩家</span>'; break;
-      case 'allied': statusBadge = '<span style="color:#55aa55">🤝 同盟</span>'; break;
-      case 'atWar': statusBadge = '<span style="color:#cc5555">⚔️ 战争</span>'; break;
-      default: statusBadge = '<span style="color:#888">中立</span>'; break;
+      case 'self': statusBadge = '<span style="color:#C43A30">👤 玩家</span>'; break;
+      case 'allied': statusBadge = '<span style="color:#4A6B8A">🤝 同盟</span>'; break;
+      case 'atWar': statusBadge = '<span style="color:#C43A30">⚔️ 战争</span>'; break;
+      default: statusBadge = '<span style="color:#6B5B4F">中立</span>'; break;
     }
 
     // 操作按钮
@@ -84,21 +84,21 @@ function renderContent() {
         btns = '<span style="color:#555">---</span>';
         break;
       case 'neutral':
-        btns = `<button data-act="ally-${f.id}" style="margin:0 2px;padding:3px 8px;background:#2a4a2a;color:#8c8;border:1px solid #484;border-radius:3px;cursor:pointer;font-size:12px">结盟</button>
-                <button data-act="war-${f.id}" style="margin:0 2px;padding:3px 8px;background:#4a2a2a;color:#c88;border:1px solid #844;border-radius:3px;cursor:pointer;font-size:12px">宣战</button>`;
+        btns = `<button data-act="ally-${f.id}" style="margin:0 2px;padding:3px 8px;background:#4A6B8A;color:#F7F2E8;border:1px solid #3A5A7A;border-radius:3px;cursor:pointer;font-size:12px">结盟</button>
+                <button data-act="war-${f.id}" style="margin:0 2px;padding:3px 8px;background:#C43A30;color:#F7F2E8;border:1px solid #A83227;border-radius:3px;cursor:pointer;font-size:12px">宣战</button>`;
         break;
       case 'allied':
-        btns = `<button data-act="break-${f.id}" style="margin:0 2px;padding:3px 8px;background:#4a3a2a;color:#ca8;border:1px solid #864;border-radius:3px;cursor:pointer;font-size:12px">撕毁盟约</button>`;
+        btns = `<button data-act="break-${f.id}" style="margin:0 2px;padding:3px 8px;background:#B8960C;color:#F7F2E8;border:1px solid #9A7E0A;border-radius:3px;cursor:pointer;font-size:12px">撕毁盟约</button>`;
         break;
       case 'atWar':
-        btns = `<button data-act="peace-${f.id}" style="margin:0 2px;padding:3px 8px;background:#2a3a4a;color:#8ac;border:1px solid #468;border-radius:3px;cursor:pointer;font-size:12px">求和</button>`;
+        btns = `<button data-act="peace-${f.id}" style="margin:0 2px;padding:3px 8px;background:#4A6B8A;color:#F7F2E8;border:1px solid #3A5A7A;border-radius:3px;cursor:pointer;font-size:12px">求和</button>`;
         break;
     }
 
     rowsHtml += `
       <tr>
         <td><div style="width:18px;height:18px;background:${toHex(f.color)};border-radius:3px;margin:0 auto"></div></td>
-        <td style="color:#ccaa44;font-weight:bold">${f.name}</td>
+        <td style="color:#3D2B1F;font-weight:bold">${f.name}</td>
         <td style="color:${relationColor(rel)}">${relStr}</td>
         <td>${statusBadge}</td>
         <td>${btns}</td>
@@ -106,15 +106,15 @@ function renderContent() {
   }
 
   panelEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #665522;padding-bottom:10px">
-      <span style="font-size:22px;color:#ccaa44;font-weight:bold">外交</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #D4C5A0;padding-bottom:10px">
+      <span style="font-size:22px;color:#C43A30;font-weight:bold;font-family:'KaiTi','STKaiti',serif">外交</span>
       <button id="btn-diplo-close" style="
-        padding:6px 22px;background:#443322;color:#ccaa44;border:1px solid #665522;
+        padding:6px 22px;background:#D4C5A0;color:#3D2B1F;border:1px solid #B8960C;
         border-radius:4px;cursor:pointer;font-size:14px
       ">关闭</button>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr style="color:#888;border-bottom:1px solid #333">
+      <tr style="color:#6B5B4F;border-bottom:1px solid #D4C5A0">
         <th style="width:30px;padding:4px"></th>
         <th style="text-align:left;padding:4px">势力</th>
         <th style="text-align:center;padding:4px">关系</th>

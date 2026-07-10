@@ -8,10 +8,28 @@ import { UNIT_TYPES } from '../logic/army.js';
 import { setCityGovernor } from '../logic/city.js';
 import { spendGold } from '../logic/faction.js';
 
+// toast 提示：底部弹出，2.5秒自动消失
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+    background:rgba(247,242,232,0.97); border:1px solid #D4C5A0;
+    border-radius:8px; padding:10px 24px; color:#3D2B1F;
+    font-family:'Microsoft YaHei',sans-serif; z-index:2000;
+    font-size:14px; pointer-events:none;
+    animation:toastFade 2.5s ease forwards;
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 2600);
+}
+
 let panelEl = null;
 let _state = null;       // 当前游戏状态引用
 let _cityId = null;      // 当前城池 ID
 let _activeTab = 'info'; // 当前标签
+
+let overlayEl = null;
 
 function getPanel() {
   if (panelEl) return panelEl;
@@ -19,11 +37,19 @@ function getPanel() {
   panelEl.id = 'city-panel';
   panelEl.style.cssText = `
     display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:420px; background:rgba(15,15,30,0.97); border:2px solid #665522;
-    border-radius:8px; padding:0; color:#ddd;
+    width:90vw; max-width:420px; background:rgba(247,242,232,0.97); border:2px solid #D4C5A0;
+    border-radius:8px; padding:0; color:#3D2B1F;
     font-family:'Microsoft YaHei',sans-serif; z-index:1000; user-select:none;
   `;
   document.body.appendChild(panelEl);
+
+  // 遮罩层：点击关闭面板
+  overlayEl = document.createElement('div');
+  overlayEl.id = 'city-overlay';
+  overlayEl.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.45); z-index:999;';
+  overlayEl.addEventListener('click', hideCityPanel);
+  document.body.appendChild(overlayEl);
+
   return panelEl;
 }
 
@@ -37,10 +63,12 @@ export function showCityPanel(city, faction, governor, state) {
   _activeTab = 'info';
   render(city, faction, governor);
   getPanel().style.display = 'block';
+  if (overlayEl) overlayEl.style.display = 'block';
 }
 
 export function hideCityPanel() {
   if (panelEl) panelEl.style.display = 'none';
+  if (overlayEl) overlayEl.style.display = 'none';
 }
 
 // ============================================================
@@ -54,9 +82,9 @@ function render(city, faction, governor) {
 
   panel.innerHTML = `
     <div style="padding:16px 18px 0">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #665522;padding-bottom:10px">
-        <span style="font-size:22px;color:#ccaa44;font-weight:bold">${city.name}</span>
-        <span style="font-size:12px;color:#888">${ownerName} · 太守：${govName}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #D4C5A0;padding-bottom:10px">
+        <span style="font-size:22px;color:#C43A30;font-weight:bold;font-family:'KaiTi','STKaiti',serif">${city.name}</span>
+        <span style="font-size:12px;color:#6B5B4F">${ownerName} · 太守：${govName}</span>
       </div>
 
       <div style="display:flex;gap:2px;margin:10px 0">
@@ -71,7 +99,7 @@ function render(city, faction, governor) {
     <div style="padding:8px 18px 16px;min-height:180px" id="city-tab-content"></div>
 
     <div style="padding:0 18px 14px;text-align:right">
-      <button id="btn-close-panel" style="padding:6px 22px;background:#443322;color:#ccaa44;border:1px solid #665522;border-radius:4px;cursor:pointer;font-size:14px">关闭</button>
+      <button id="btn-close-panel" style="padding:8px 24px;background:#D4C5A0;color:#3D2B1F;border:1px solid #B8960C;border-radius:4px;cursor:pointer;font-size:15px;font-family:'KaiTi','STKaiti',serif">关闭</button>
     </div>
   `;
 
@@ -102,10 +130,10 @@ function render(city, faction, governor) {
 function tabBtn(tab, label) {
   const active = _activeTab === tab;
   return `<button class="city-tab-btn" data-tab="${tab}" style="
-    flex:1; padding:6px 0; cursor:pointer; font-size:13px; font-family:inherit;
-    background:${active ? '#332211' : '#1a1a30'}; color:${active ? '#ccaa44' : '#888'};
-    border:1px solid ${active ? '#665522' : '#333355'}; border-radius:4px 4px 0 0;
-    border-bottom:${active ? 'none' : '1px solid #333355'};
+    flex:1; padding:8px 2px; cursor:pointer; font-size:14px; font-family:inherit;
+    background:${active ? '#F0E8D8' : '#E8E0D0'}; color:${active ? '#C43A30' : '#6B5B4F'};
+    border:1px solid ${active ? '#D4C5A0' : '#D4C5A0'}; border-radius:4px 4px 0 0;
+    border-bottom:${active ? 'none' : '1px solid #D4C5A0'}; font-family:'KaiTi','STKaiti',serif;
   ">${label}</button>`;
 }
 
@@ -126,15 +154,15 @@ function renderInfo(city) {
       <div>🏰 城防：${starBar(city.defense)}</div>
       <div>😊 民心：<b style="color:${city.stability >= 60 ? '#5a5' : '#c55'}">${city.stability}</b></div>
       <div>⚔️ 驻军：${g} 队 / ${totalTroops} 兵</div>
-      <div style="grid-column:1/-1;color:#888;font-size:12px">
+      <div style="grid-column:1/-1;color:#6B5B4F;font-size:12px">
         收入：${Math.floor(city.population / 1000 * city.commerce * 0.3)} 金/回合 · 人口增长：${Math.floor(city.population * 0.01 + city.agriculture * 50) * city.stability / 100} 人/回合
       </div>
     </div>`;
 }
 
 function starBar(v) {
-  return '<span style="color:#ccaa44">' + '★'.repeat(v) + '</span>'
-       + '<span style="color:#333">' + '☆'.repeat(10 - v) + '</span>';
+  return '<span style="color:#B8960C">' + '★'.repeat(v) + '</span>'
+       + '<span style="color:#D4C5A0">' + '☆'.repeat(10 - v) + '</span>';
 }
 
 // ============================================================
@@ -158,19 +186,19 @@ function renderRecruit(city, faction) {
     const canAfford = gold >= cost && pop >= 100;
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;
-        background:#1a1a30;border:1px solid #333355;border-radius:6px;padding:10px 14px">
+        background:#F0E8D8;border:1px solid #D4C5A0;border-radius:6px;padding:10px 14px">
         <div>
-          <div style="font-size:15px;color:#ccaa44;font-weight:bold">${def.name}</div>
-          <div style="font-size:12px;color:#888">
+          <div style="font-size:15px;color:#C43A30;font-weight:bold">${def.name}</div>
+          <div style="font-size:12px;color:#6B5B4F">
             攻${def.attack} 防${def.defense} 速${def.speed} · 克制${UNIT_TYPES[def.counters]?.name || '-'}
           </div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;color:${canAfford ? '#aaa' : '#c55'}">💰${cost}金 👥100人</div>
+          <div style="font-size:12px;color:${canAfford ? '#3D2B1F' : '#c55'}">💰${cost}金 👥100人</div>
           <button class="btn-recruit" data-type="${key}" ${canAfford ? '' : 'disabled'}
-            style="margin-top:4px;padding:4px 14px;background:${canAfford ? '#2a4a2a' : '#333'};
-            color:${canAfford ? '#8c8' : '#555'};border:1px solid ${canAfford ? '#484' : '#444'};
-            border-radius:3px;cursor:${canAfford ? 'pointer' : 'default'};font-size:13px;font-family:inherit">
+            style="margin-top:4px;padding:8px 16px;background:${canAfford ? '#C43A30' : '#D4C5A0'};
+            color:${canAfford ? '#F7F2E8' : '#999'};border:1px solid ${canAfford ? '#A83227' : '#D4C5A0'};
+            border-radius:4px;cursor:${canAfford ? 'pointer' : 'default'};font-size:14px;font-family:'KaiTi','STKaiti',serif">
             招募一队
           </button>
         </div>
@@ -194,7 +222,7 @@ function bindRecruitButtons(city, faction) {
         const governor = updatedCity.governor ? _state.generals[updatedCity.governor] : null;
         render(updatedCity, updatedFaction, governor);
       } else {
-        alert('招募失败：资金不足或人口不够');
+        showToast('招募失败：资金不足或人口不够');
       }
     };
   });
@@ -227,15 +255,15 @@ function renderBuild(city, faction) {
     const canAfford = gold >= cost && item.cur < 10;
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;
-        background:#1a1a30;border:1px solid #333355;border-radius:6px;padding:10px 14px">
+        background:#F0E8D8;border:1px solid #D4C5A0;border-radius:6px;padding:10px 14px">
         <div>
-          <div style="font-size:14px;color:#ccaa44">${item.label} ${starBar(item.cur)}</div>
-          <div style="font-size:12px;color:#888">${item.desc}</div>
+          <div style="font-size:14px;color:#3D2B1F">${item.label} ${starBar(item.cur)}</div>
+          <div style="font-size:12px;color:#6B5B4F">${item.desc}</div>
         </div>
         <button class="btn-build" data-key="${item.key}" ${canAfford ? '' : 'disabled'}
-          style="padding:4px 14px;background:${canAfford ? '#2a3a4a' : '#333'};
-          color:${canAfford ? '#8ac' : '#555'};border:1px solid ${canAfford ? '#468' : '#444'};
-          border-radius:3px;cursor:${canAfford ? 'pointer' : 'default'};font-size:13px;font-family:inherit;
+          style="padding:8px 16px;background:${canAfford ? '#4A6B8A' : '#D4C5A0'};
+          color:${canAfford ? '#F7F2E8' : '#999'};border:1px solid ${canAfford ? '#3A5A7A' : '#D4C5A0'};
+          border-radius:4px;cursor:${canAfford ? 'pointer' : 'default'};font-size:14px;font-family:'KaiTi','STKaiti',serif;
           white-space:nowrap">
           ${item.cur >= 10 ? '已满级' : '升级 💰' + cost}
         </button>
@@ -262,7 +290,7 @@ function bindBuildButtons(city, faction) {
         const governor = updatedCity.governor ? _state.generals[updatedCity.governor] : null;
         render(updatedCity, updatedFaction, governor);
       } else {
-        alert('资金不足！');
+        showToast('资金不足！');
       }
     };
   });
@@ -279,31 +307,31 @@ function renderInternal(city, faction) {
   const income = Math.floor(city.population / 1000 * city.commerce * taxRate / 100);
 
   let html = `
-    <div style="font-size:15px;color:#ccaa44;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">💰 税率调节</div>
+    <div style="font-size:15px;color:#3D2B1F;margin-bottom:10px;border-bottom:1px solid #D4C5A0;padding-bottom:6px">💰 税率调节</div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
-      <span style="font-size:13px;color:#aaa">当前税率：</span>
-      <b style="font-size:18px;color:#ccaa44">${taxRate}%</b>
+      <span style="font-size:13px;color:#6B5B4F">当前税率：</span>
+      <b style="font-size:18px;color:#C43A30">${taxRate}%</b>
     </div>
     <div style="margin:6px 0">`;
 
   for (const rate of [10, 20, 30, 40, 50]) {
     html += `<button class="btn-tax" data-rate="${rate}" style="
-      margin:2px;padding:4px 12px;background:${taxRate === rate ? '#332211' : '#1a1a30'};
-      color:${taxRate === rate ? '#ccaa44' : '#888'};border:1px solid ${taxRate === rate ? '#665522' : '#333355'};
-      border-radius:3px;cursor:pointer;font-size:13px;font-family:inherit">${rate}%</button>`;
+      margin:2px;padding:8px 14px;background:${taxRate === rate ? '#F0E8D8' : '#E8E0D0'};
+      color:${taxRate === rate ? '#C43A30' : '#6B5B4F'};border:1px solid ${taxRate === rate ? '#C43A30' : '#D4C5A0'};
+      border-radius:4px;cursor:pointer;font-size:14px;font-family:inherit">${rate}%</button>`;
   }
 
   html += `</div>
-    <div style="font-size:12px;color:#888;margin-bottom:2px">预计收入：<b style="color:#ccaa44">${income}</b> 金/回合</div>
-    <div style="font-size:12px;color:#888">⚠️ 高税率会降低民心增长</div>`;
+    <div style="font-size:12px;color:#6B5B4F;margin-bottom:2px">预计收入：<b style="color:#C43A30">${income}</b> 金/回合</div>
+    <div style="font-size:12px;color:#6B5B4F">⚠️ 高税率会降低民心增长</div>`;
 
   // 招将
   html += `
-    <div style="font-size:15px;color:#ccaa44;margin-top:14px;border-top:1px solid #333;padding-top:10px;margin-bottom:6px">🎯 招募武将</div>
-    <div style="font-size:12px;color:#888;margin-bottom:6px">消耗 800 金币，随机招募一位武将加入本势力</div>
+    <div style="font-size:15px;color:#3D2B1F;margin-top:14px;border-top:1px solid #D4C5A0;padding-top:10px;margin-bottom:6px">🎯 招募武将</div>
+    <div style="font-size:12px;color:#6B5B4F;margin-bottom:6px">消耗 800 金币，随机招募一位武将加入本势力</div>
     <button class="btn-recruit-gen" style="
-      padding:6px 16px;background:#2a3a4a;color:#8ac;border:1px solid #468;
-      border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit"
+      padding:8px 18px;background:#4A6B8A;color:#F7F2E8;border:1px solid #3A5A7A;
+      border-radius:4px;cursor:pointer;font-size:14px;font-family:inherit"
       ${(faction.gold || 0) >= 800 ? '' : 'disabled'}>
       ${(faction.gold || 0) >= 800 ? '招募 💰800' : '资金不足'}
     </button>`;
@@ -362,14 +390,14 @@ function bindInternalButtons(city, faction) {
 // ============================================================
 
 function renderGovernor(city, faction) {
-  if (!faction) return '<div style="color:#888;text-align:center;padding:40px">此城无主，无法任命</div>';
+  if (!faction) return '<div style="color:#6B5B4F;text-align:center;padding:40px">此城无主，无法任命</div>';
 
   // 找出本势力下的所有武将
   const allGenerals = _state ? Object.values(_state.generals) : [];
   const factionGenerals = allGenerals.filter(g => g.factionId === faction.id);
 
   if (factionGenerals.length === 0) {
-    return '<div style="color:#888;text-align:center;padding:30px">本势力暂无武将</div>';
+    return '<div style="color:#6B5B4F;text-align:center;padding:30px">本势力暂无武将</div>';
   }
 
   const currentGov = city.governor;
@@ -383,25 +411,25 @@ function renderGovernor(city, faction) {
 
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;
-        background:${isCurrent ? '#2a2a10' : '#1a1a30'};border:1px solid ${isCurrent ? '#665522' : '#333355'};
+        background:${isCurrent ? '#F0E8D8' : '#F0E8D8'};border:1px solid ${isCurrent ? '#C43A30' : '#D4C5A0'};
         border-radius:6px;padding:10px 14px">
         <div>
-          <div style="font-size:14px;color:${isCurrent ? '#ccaa44' : '#ddd'};font-weight:bold">
+          <div style="font-size:14px;color:${isCurrent ? '#C43A30' : '#3D2B1F'};font-weight:bold">
             ${g.name} ${isCurrent ? '👈 现任' : ''}
           </div>
-          <div style="font-size:11px;color:#888">
+          <div style="font-size:11px;color:#6B5B4F">
             统${g.leadership} 武${g.might} 智${g.intelligence} 政${g.politics} · 忠诚${g.loyalty}
-            ${busy ? `<span style="color:#c88"> · 已在「${otherCity.name}」任职</span>` : ''}
+            ${busy ? `<span style="color:#C43A30"> · 已在「${otherCity.name}」任职</span>` : ''}
           </div>
         </div>
         ${isCurrent ? `
           <button class="btn-dismiss-gov" data-gid="${g.id}"
-            style="padding:4px 10px;background:#4a2a2a;color:#c88;border:1px solid #844;
-            border-radius:3px;cursor:pointer;font-size:12px;font-family:inherit">解任</button>
+            style="padding:8px 14px;background:#C43A30;color:#F7F2E8;border:1px solid #A83227;
+            border-radius:4px;cursor:pointer;font-size:14px;font-family:'KaiTi','STKaiti',serif">解任</button>
         ` : (busy ? '' : `
           <button class="btn-assign-gov" data-gid="${g.id}"
-            style="padding:4px 10px;background:#2a4a2a;color:#8c8;border:1px solid #484;
-            border-radius:3px;cursor:pointer;font-size:12px;font-family:inherit">任命</button>
+            style="padding:8px 14px;background:#4A6B8A;color:#F7F2E8;border:1px solid #3A5A7A;
+            border-radius:4px;cursor:pointer;font-size:14px;font-family:'KaiTi','STKaiti',serif">任命</button>
         `)}
       </div>`;
   }

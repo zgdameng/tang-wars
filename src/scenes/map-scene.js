@@ -14,6 +14,7 @@ import { showArmyPanel, hideArmyPanel } from '../ui/army-panel.js';
 import { showEspionagePanel, hideEspionagePanel } from '../ui/espionage-panel.js';
 import { showTurnReport } from '../ui/turn-report.js';
 import { saveGame } from '../logic/save-load.js';
+import { playClick, playDrum, startBgMusic, stopBgMusic } from '../audio/sound-manager.js';
 
 export class MapScene extends Phaser.Scene {
   constructor() {
@@ -45,8 +46,10 @@ export class MapScene extends Phaser.Scene {
     // 相机：有边界 + 拖拽平移 + 滚轮缩放
     this.setupCamera();
 
-    // 城池点击 → 弹出信息面板
+    // 城池点击 → 弹出信息面板（捏合缩放冷却期内不触发）
     this.events.on('city-clicked', (cityId) => {
+      if (this._pinchCooldown) return;
+      playClick();
       const city = this.gameState.cities[cityId];
       if (!city) return;
       const faction = city.owner ? this.gameState.factions[city.owner] : null;
@@ -56,6 +59,8 @@ export class MapScene extends Phaser.Scene {
 
     // 部队点击 → 行军操作面板
     this.events.on('army-clicked', (armyId) => {
+      if (this._pinchCooldown) return;
+      playDrum();
       const army = this.gameState.armies[armyId];
       if (!army) return;
       hideCityPanel();
@@ -64,6 +69,7 @@ export class MapScene extends Phaser.Scene {
 
     // 切走场景时清理
     this.events.on('shutdown', () => {
+      stopBgMusic();
       hideCityPanel();
       hideDiplomacyPanel();
       hideEspionagePanel();
@@ -75,6 +81,16 @@ export class MapScene extends Phaser.Scene {
       this.removeDomButton('diplomacy-btn');
       this.removeDomButton('spy-btn');
       this.removeDomButton('save-btn');
+      // 清理原生 touch 监听
+      const canvas = this.sys.game.canvas;
+      if (this._onTouchStart) {
+        canvas.removeEventListener('touchstart', this._onTouchStart);
+        canvas.removeEventListener('touchmove', this._onTouchMove);
+        canvas.removeEventListener('touchend', this._onTouchEnd);
+        this._onTouchStart = null;
+        this._onTouchMove = null;
+        this._onTouchEnd = null;
+      }
       // 清理 DOM 滚轮监听
       if (this._onWheel) {
         this.sys.game.canvas.removeEventListener('wheel', this._onWheel);
@@ -88,6 +104,7 @@ export class MapScene extends Phaser.Scene {
 
     // 回合面板（右下角）
     createTurnPanel(() => {
+      playDrum();
       const result = executeTurn(this.gameState);
       setTurnDisplay(result.turn);
       saveGame(this.gameState, 1, '自动存档');
@@ -105,17 +122,17 @@ export class MapScene extends Phaser.Scene {
 
     // 外交按钮
     this.createDomButton('diplomacy-btn', '外交', 200, () => {
-      showDiplomacyPanel(this.gameState);
+      playClick(); showDiplomacyPanel(this.gameState);
     });
 
     // 间谍按钮
     this.createDomButton('spy-btn', '间谍', 280, () => {
-      showEspionagePanel(this.gameState);
+      playClick(); showEspionagePanel(this.gameState);
     });
 
     // 存档按钮
     this.createDomButton('save-btn', '存档', 360, () => {
-      showSavePanel(this.gameState);
+      playClick(); showSavePanel(this.gameState);
     });
 
     // 战斗结果回调
@@ -131,6 +148,9 @@ export class MapScene extends Phaser.Scene {
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
+
+    // 启动背景音乐（首次用户交互后才能播放，延迟一点确保 AudioContext 已解锁）
+    this.time.delayedCall(500, () => startBgMusic());
   }
 
   // 每帧更新 DOM 标签（跟随镜头）
@@ -142,10 +162,12 @@ export class MapScene extends Phaser.Scene {
   // 相机：限制在地图范围内，支持拖拽平移 + 滚轮缩放（聚焦鼠标位置）
   setupCamera() {
     const cam = this.cameras.main;
-    cam.setBackgroundColor('#2a4a6a');
+    cam.setBackgroundColor('#F0E8D8');
 
-    const initZoom = Math.min(cam.width / MAP_W, cam.height / MAP_H);
-    cam.setZoom(Math.max(0.28, initZoom * 0.95));
+    // 初始缩放：手机上 0.55 起步（防止地图太小），桌面端自适应
+    const fitZoom = Math.min(cam.width / MAP_W, cam.height / MAP_H);
+    const minZoom = 0.50;
+    cam.setZoom(Math.max(minZoom, fitZoom));
 
     // 缩放工具函数
     this._zoomAt = (camera, mx, my, delta) => {
@@ -166,31 +188,61 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
     });
 
-    // 桌面滚轮
+    // 桌面滚轮 —— 用事件自带坐标，不依赖可能过期的 activePointer
     this._onWheel = (e) => {
       e.preventDefault();
-      const ptr = this.input.activePointer;
-      this._zoomAt(cam, ptr.x, ptr.y, -e.deltaY * 0.0008);
+      const cvs = this.sys.game.canvas;
+      const rect = cvs.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (cam.width / rect.width);
+      const my = (e.clientY - rect.top) * (cam.height / rect.height);
+      this._zoomAt(cam, mx, my, -e.deltaY * 0.0008);
     };
     this.sys.game.canvas.addEventListener('wheel', this._onWheel, { passive: false });
 
-    // 手机双指缩放
+    // 手机双指缩放 —— 用原生 touch 事件，比 Phaser pointer 兼容性更好
     this._pinchDist = 0;
-    this.input.on('pointerdown', () => {
-      const p1 = this.input.pointer1, p2 = this.input.pointer2;
-      if (p1 && p2 && p1.isDown && p2.isDown)
-        this._pinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    });
-    this.input.on('pointermove', () => {
-      const p1 = this.input.pointer1, p2 = this.input.pointer2;
-      if (!p1 || !p2 || !p1.isDown || !p2.isDown) return;
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      if (this._pinchDist > 0) {
-        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-        this._zoomAt(cam, mx, my, (dist - this._pinchDist) * 0.005);
+    this._pinchActive = false;   // 是否正在捏合中
+    this._pinchCooldown = false; // 捏合结束后短暂屏蔽点击
+    const canvas = this.sys.game.canvas;
+
+    this._onTouchStart = (e) => {
+      if (e.touches.length >= 2) {
+        this._pinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        this._pinchActive = true;
       }
-      this._pinchDist = dist;
-    });
+    };
+    this._onTouchMove = (e) => {
+      if (e.touches.length >= 2 && this._pinchDist > 0) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const rect = canvas.getBoundingClientRect();
+        const gx = (mx - rect.left) * (cam.width / rect.width);
+        const gy = (my - rect.top) * (cam.height / rect.height);
+        this._zoomAt(cam, gx, gy, (dist - this._pinchDist) * 0.005);
+        this._pinchDist = dist;
+        e.preventDefault(); // 阻止浏览器处理这个 touch，避免误触
+      }
+    };
+    this._onTouchEnd = () => {
+      if (this._pinchActive) {
+        // 捏合结束：设 300ms 冷却，屏蔽 Phaser 点击事件（防止误触城池）
+        this._pinchCooldown = true;
+        setTimeout(() => { this._pinchCooldown = false; }, 300);
+      }
+      this._pinchDist = 0;
+      this._pinchActive = false;
+    };
+
+    canvas.addEventListener('touchstart', this._onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', this._onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', this._onTouchEnd);
   }
 
   // 右下角 DOM 按钮
@@ -199,10 +251,10 @@ export class MapScene extends Phaser.Scene {
     btn.id = id;
     btn.style.cssText = `
       position: fixed; bottom: 16px; right: ${rightOffset}px;
-      background: rgba(15,15,30,0.92); border: 1px solid #665522;
-      border-radius: 6px; padding: 8px 14px; color: #ccaa44;
-      font-family: 'Microsoft YaHei', sans-serif; z-index: 500;
-      cursor: pointer; font-size: 14px;
+      background: rgba(247,242,232,0.94); border: 1px solid #D4C5A0;
+      border-radius: 6px; padding: 8px 14px; color: #3D2B1F;
+      font-family: 'KaiTi', 'STKaiti', 'Microsoft YaHei', sans-serif; z-index: 500;
+      cursor: pointer; font-size: 15px;
     `;
     btn.textContent = label;
     btn.onclick = onClick;

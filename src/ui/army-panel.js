@@ -18,8 +18,8 @@ function getPanel() {
   panelEl.style.cssText = `
     display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
     width:440px; max-height:70vh; overflow-y:auto;
-    background:rgba(15,15,30,0.97); border:2px solid #665522;
-    border-radius:8px; padding:16px; color:#ddd;
+    background:rgba(247,242,232,0.97); border:2px solid #D4C5A0;
+    border-radius:8px; padding:16px; color:#3D2B1F;
     font-family:'Microsoft YaHei',sans-serif; z-index:1000; user-select:none;
   `;
   document.body.appendChild(panelEl);
@@ -60,14 +60,14 @@ function render() {
   const statusText = army.state === 'idle' ? '待命中' : army.state === 'moving' ? `行军至 (${army.moveTarget?.x},${army.moveTarget?.y}) 剩余${army.moveTurnsRemaining}回合` : army.state;
 
   panel.innerHTML = `
-    <div style="border-bottom:1px solid #665522;padding-bottom:10px;margin-bottom:12px">
-      <div style="font-size:20px;color:#ccaa44;font-weight:bold">${faction ? faction.name : '未知'}军</div>
-      <div style="font-size:12px;color:#888">战力 ${strength} · ${totalCount} 兵 · ${statusText}</div>
+    <div style="border-bottom:1px solid #D4C5A0;padding-bottom:10px;margin-bottom:12px">
+      <div style="font-size:20px;color:#C43A30;font-weight:bold;font-family:'KaiTi','STKaiti',serif">${faction ? faction.name : '未知'}军</div>
+      <div style="font-size:12px;color:#6B5B4F">战力 ${strength} · ${totalCount} 兵 · ${statusText}</div>
     </div>
     <div style="margin-bottom:10px">${unitList}</div>
-    ${isPlayer && army.state === 'idle' ? renderMoveTargets(army, state) : (army.state === 'moving' ? `<div style="color:#888;font-size:13px">行军预计剩余 ${army.moveTurnsRemaining} 回合</div>` : '<div style="color:#888">此部队无法操作</div>')}
-    <div style="margin-top:14px;text-align:right;border-top:1px solid #333;padding-top:10px">
-      <button id="btn-army-close" style="padding:6px 22px;background:#443322;color:#ccaa44;border:1px solid #665522;border-radius:4px;cursor:pointer;font-size:14px;font-family:inherit">关闭</button>
+    ${isPlayer && army.state === 'idle' ? renderMoveTargets(army, state) : (army.state === 'moving' ? `<div style="color:#6B5B4F;font-size:13px">行军预计剩余 ${army.moveTurnsRemaining} 回合</div>` : '<div style="color:#6B5B4F">此部队无法操作</div>')}
+    <div style="margin-top:14px;text-align:right;border-top:1px solid #D4C5A0;padding-top:10px">
+      <button id="btn-army-close" style="padding:6px 22px;background:#D4C5A0;color:#3D2B1F;border:1px solid #B8960C;border-radius:4px;cursor:pointer;font-size:14px;font-family:'KaiTi','STKaiti',serif">关闭</button>
     </div>
   `;
 
@@ -82,7 +82,7 @@ function renderMoveTargets(army, state) {
   const srcX = currentCity ? currentCity.x : army.position.x;
   const srcY = currentCity ? currentCity.y : army.position.y;
 
-  let html = '<div style="font-size:14px;color:#ccaa44;margin-bottom:6px">🎯 选择行军目标：</div>';
+  let html = '<div style="font-size:14px;color:#3D2B1F;margin-bottom:6px">🎯 选择行军目标：</div>';
   html += '<div style="display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto">';
 
   for (const city of cities) {
@@ -102,16 +102,16 @@ function renderMoveTargets(army, state) {
 
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;
-        background:#1a1a30;border:1px solid ${isEnemy ? '#603030' : '#333355'};border-radius:5px;padding:8px 12px">
+        background:#F0E8D8;border:1px solid ${isEnemy ? '#C43A30' : '#D4C5A0'};border-radius:5px;padding:8px 12px">
         <div>
-          <span style="color:#ccaa44;font-weight:bold">${city.name}</span>
-          <span style="font-size:11px;color:#888;margin-left:8px">${ownerName}</span>
+          <span style="color:#3D2B1F;font-weight:bold">${city.name}</span>
+          <span style="font-size:11px;color:#6B5B4F;margin-left:8px">${ownerName}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:11px;color:#888">${turns} 回合</span>
+          <span style="font-size:11px;color:#6B5B4F">${turns} 回合</span>
           <button class="btn-army-move" data-cx="${city.x}" data-cy="${city.y}" data-cid="${city.id}" style="
-            padding:3px 12px;background:${isEnemy ? '#4a2a2a' : '#2a3a4a'};
-            color:${isEnemy ? '#c88' : '#8ac'};border:1px solid ${isEnemy ? '#844' : '#468'};
+            padding:3px 12px;background:${isEnemy ? '#C43A30' : '#4A6B8A'};
+            color:#F7F2E8;border:1px solid ${isEnemy ? '#A83227' : '#3A5A7A'};
             border-radius:3px;cursor:pointer;font-size:12px;font-family:inherit">${actionLabel}</button>
         </div>
       </div>`;
