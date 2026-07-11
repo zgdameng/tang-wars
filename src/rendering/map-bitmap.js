@@ -39,6 +39,10 @@ export function getRiverLayers(width) {
   ];
 }
 
+export function getFactionTintAlpha(weight) {
+  return Math.min(0.16, Number((Math.max(0, weight) * 0.32).toFixed(2)));
+}
+
 // ============================================================
 export function generateMapBitmap(state) {
   const hm = buildHeightmap();
@@ -175,7 +179,7 @@ function renderSmall(hm, state) {
             let br = fc1.r * w1, bg = fc1.g * w1, bb = fc1.b * w1;
             if (fc2) { br += fc2.r * w2; bg += fc2.g * w2; bb += fc2.b * w2; }
             br /= tw; bg /= tw; bb /= tw;
-            const alpha = Math.min(0.28, tw * 0.55);
+            const alpha = getFactionTintAlpha(tw);
             r = clamp(Math.round(r * (1 - alpha) + br * alpha));
             g = clamp(Math.round(g * (1 - alpha) + bg * alpha));
             b = clamp(Math.round(b * (1 - alpha) + bb * alpha));
