@@ -90,7 +90,77 @@ git commit -m "feat: deepen map terrain rendering"
 - Consumes: `createCityMarkers(scene, cities, factions)`。
 - Produces: 相同函数签名；每座城继续拥有可点击区域与名称标签。
 
-- [ ] **Step 1: 增加不改变点击范围的城池底座**
+- [ ] **Step 0: 先锁定放大后的城池尺寸**
+
+在 `tests/rendering/city-marker.test.js` 新增以下检查。它确保地图缩放时，城池、点击范围和名称位置使用同一组尺寸：
+
+```js
+import { describe, expect, it } from 'vitest';
+import { getCityMarkerMetrics } from '../../src/rendering/city-marker.js';
+
+describe('getCityMarkerMetrics', () => {
+  it('keeps the enlarged city, tap area and label aligned', () => {
+    expect(getCityMarkerMetrics()).toEqual({
+      scale: 1.65,
+      hitWidth: 108,
+      hitHeight: 82,
+      labelOffsetY: -52,
+    });
+  });
+});
+```
+
+先运行：`npm.cmd test -- tests/rendering/city-marker.test.js`
+
+预期：失败并提示 `getCityMarkerMetrics is not a function`。
+
+- [ ] **Step 1: 放大四类城池并同步点击范围**
+
+在 `src/rendering/city-marker.js` 增加以下常量和函数：
+
+```js
+const CITY_MARKER_SCALE = 1.65;
+
+export function getCityMarkerMetrics() {
+  return {
+    scale: CITY_MARKER_SCALE,
+    hitWidth: 108,
+    hitHeight: 82,
+    labelOffsetY: -52,
+  };
+}
+```
+
+在 `_styleFor` 产生四种地域造型后，统一将 `W`、`H`、`D`、`platH`、`platExt`、`roofH1`、`roofH2`、`eave1`、`eave2`、`gateW`、`gateH`、`towerW`、`towerH`、`upperH` 乘以 `CITY_MARKER_SCALE` 并取整。`createCityMarkers` 必须以 `getCityMarkerMetrics()` 设置透明点击区域，并以 `labelOffsetY` 放置城名。
+
+- [ ] **Step 2: 将旗帜同步放大**
+
+为 `_drawFlag` 增加 `scale` 参数，并按比例绘制旗杆、旗帜与飘带：
+
+```js
+function _drawFlag(gfx, factionColor, px, top, bottom, scale) {
+  gfx.fillRect(px - scale, top, scale * 2, bottom - top + scale * 2);
+  gfx.fillCircle(px, top, scale * 2);
+  gfx.fillTriangle(px + scale, top + scale * 2, px + scale, top + scale * 7, px + scale * 7, top + scale * 4);
+}
+```
+
+四种地域城池都传入 `CITY_MARKER_SCALE`。旗帜只保留势力颜色，城墙、屋顶和石基继续使用地域配色。
+
+- [ ] **Step 3: 验证放大城池的外观和交互**
+
+运行：`npm.cmd test -- tests/rendering/city-marker.test.js`，再运行：`npm.cmd run build`。
+
+打开游戏，选择任意势力，检查默认地图下的二十座城池：城墙、城门和旗帜应明显大于当前版本；点击己方与敌方城池都必须弹出原有面板。
+
+- [ ] **Step 4: 提交**
+
+```bash
+git add src/rendering/city-marker.js tests/rendering/city-marker.test.js
+git commit -m "feat: enlarge city landmarks"
+```
+
+- [ ] **Step 5: 增加不改变点击范围的城池底座**
 
 在 `_drawCastle` 中、建筑主体之前绘制固定大小的深灰石基座。基座中心使用现有 `cx`、`cy`，不得移动 `hitZone`：
 
@@ -103,7 +173,7 @@ gfx.fillStyle(0xB2A481, 0.35);
 gfx.fillEllipse(cx - 4, cy + 8, 22, 4);
 ```
 
-- [ ] **Step 2: 强化城墙、屋顶和军旗层次**
+- [ ] **Step 6: 强化城墙、屋顶和军旗层次**
 
 在四种城池绘制函数中统一使用三层结构：深色阴影墙面、石块或砖线、中亮色顶部。旗帜保留势力颜色，但增加暗红或深褐描边：
 
@@ -114,7 +184,7 @@ gfx.strokeTriangle(px + 1, top + 2, px + 1, top + 7, px + 7, top + 4);
 
 建筑主色不得全部替换为势力颜色，势力颜色只用于旗帜、城门饰条和悬停高亮。
 
-- [ ] **Step 3: 调整名称标签的对比度**
+- [ ] **Step 7: 调整名称标签的对比度**
 
 保留现有 DOM 名称标签位置算法。在标签样式中使用深褐文字、浅纸底和两层投影：
 
@@ -125,13 +195,13 @@ border: 1px solid rgba(80, 62, 42, 0.72);
 box-shadow: 0 1px 0 rgba(255,255,255,0.45), 0 2px 5px rgba(0,0,0,0.40);
 ```
 
-- [ ] **Step 4: 验证城池交互未被破坏**
+- [ ] **Step 8: 验证城池交互未被破坏**
 
 运行：`npm run build`，再打开游戏并点击任意己方城池与敌方城池。
 
 预期：两次点击均弹出原有城池面板；鼠标移入与移出仍有高亮变化。
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 9: 提交**
 
 ```bash
 git add src/rendering/city-marker.js
