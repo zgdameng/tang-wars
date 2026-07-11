@@ -9,7 +9,7 @@ export function getCityMarkerMetrics() {
     scale: CITY_MARKER_SCALE,
     hitWidth: 108,
     hitHeight: 82,
-    labelOffsetY: -52,
+    labelOffsetY: -78,
   };
 }
 

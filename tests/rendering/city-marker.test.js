@@ -7,7 +7,7 @@ describe('getCityMarkerMetrics', () => {
       scale: 1.65,
       hitWidth: 108,
       hitHeight: 82,
-      labelOffsetY: -52,
+      labelOffsetY: -78,
     });
   });
 });
