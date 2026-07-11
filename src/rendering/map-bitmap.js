@@ -31,6 +31,14 @@ export function getTerrainPalette(elev) {
   return [205, 204, 192];
 }
 
+export function getRiverLayers(width) {
+  return [
+    { color: 'rgba(31, 45, 43, 0.48)', width: width + 16 },
+    { color: '#3d7187', width },
+    { color: 'rgba(188, 213, 205, 0.34)', width: width * 0.18 },
+  ];
+}
+
 // ============================================================
 export function generateMapBitmap(state) {
   const hm = buildHeightmap();
@@ -285,32 +293,29 @@ function paintRivers(ctx) {
     { x: 100, y: 967 }, { x: 160, y: 1000 }, { x: 220, y: 1033 }, { x: 260, y: 1050 },
   ];
 
-  paintRiverPath(ctx, yellow, '#4098d8', 18);
-  paintRiverPath(ctx, yangtze, '#40a8e0', 19);
-  paintRiverPath(ctx, hanjiang, '#4098d0', 10);
-  paintRiverPath(ctx, minjiang, '#4098d0', 9);
+  paintRiverPath(ctx, yellow, 18);
+  paintRiverPath(ctx, yangtze, 19);
+  paintRiverPath(ctx, hanjiang, 10);
+  paintRiverPath(ctx, minjiang, 9);
 }
 
-function paintRiverPath(ctx, pts, color, w) {
+function paintRiverPath(ctx, pts, w) {
   if (pts.length < 2) return;
   const p = smoothPath(pts);
-  ctx.save();
-  ctx.strokeStyle = 'rgba(22,32,28,0.26)'; ctx.lineWidth = w + 14;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
-  for (let i = 1; i < p.length - 2; i += 3) ctx.bezierCurveTo(p[i].x, p[i].y, p[i + 1].x, p[i + 1].y, p[i + 2].x, p[i + 2].y);
-  ctx.stroke(); ctx.restore();
-  ctx.save();
-  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.globalAlpha = 0.7;
-  ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
-  for (let i = 1; i < p.length - 2; i += 3) ctx.bezierCurveTo(p[i].x, p[i].y, p[i + 1].x, p[i + 1].y, p[i + 2].x, p[i + 2].y);
-  ctx.stroke(); ctx.restore();
-  ctx.save();
-  ctx.strokeStyle = 'rgba(180,225,250,0.26)'; ctx.lineWidth = w * 0.25; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
-  for (let i = 1; i < p.length - 2; i += 3) ctx.bezierCurveTo(p[i].x, p[i].y, p[i + 1].x, p[i + 1].y, p[i + 2].x, p[i + 2].y);
-  ctx.stroke(); ctx.restore();
+  for (const layer of getRiverLayers(w)) {
+    ctx.save();
+    ctx.strokeStyle = layer.color;
+    ctx.lineWidth = layer.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(p[0].x, p[0].y);
+    for (let i = 1; i < p.length - 2; i += 3) {
+      ctx.bezierCurveTo(p[i].x, p[i].y, p[i + 1].x, p[i + 1].y, p[i + 2].x, p[i + 2].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function smoothPath(pts) {
