@@ -118,7 +118,7 @@ describe('checkBattleEnd', () => {
       attackerUnits: [{ type: 'infantry', count: 10, morale: 80, exp: 0 }],
       defenderUnits: [{ type: 'infantry', count: 50, morale: 80, exp: 0 }]
     });
-    battle.attacker.units[0].hp = 0;
+    battle.attacker.units[0].count = 0;
 
     expect(checkBattleEnd(battle)).toBe('defender');
   });
