@@ -32,15 +32,15 @@ export function createCityMarkers(scene, cities, factions) {
     // 城池图标（城楼形状，Phaser Graphics 绘制）
     const gfx = scene.add.graphics();
     const fc = faction ? faction.color : 0x888888;
-    _drawCastle(gfx, x, y - 4, fc);
+    _drawCastle(gfx, x, y - 4, fc, city.province);
     gfx.setDepth(10);
     // 交互区用透明矩形覆盖城楼（放大以匹配新图标）
-    const hitZone = scene.add.rectangle(x, y - 8, 50, 36, 0x000000, 0);
+    const hitZone = scene.add.rectangle(x, y - 10, 68, 50, 0x000000, 0);
     hitZone.setInteractive({ useHandCursor: true });
     hitZone.setDepth(11);
     hitZone.cityId = city.id;
-    hitZone.on('pointerover', () => { gfx.clear(); _drawCastle(gfx, x, y - 4, 0xd4c5a0); });
-    hitZone.on('pointerout',  () => { gfx.clear(); _drawCastle(gfx, x, y - 4, fc); });
+    hitZone.on('pointerover', () => { gfx.clear(); _drawCastle(gfx, x, y - 4, 0xd4c5a0, city.province); });
+    hitZone.on('pointerout',  () => { gfx.clear(); _drawCastle(gfx, x, y - 4, fc, city.province); });
     // 按下记录起点，抬手判断移动距离 < 8px 才算点击（避免拖拽地图时误触）
     hitZone.on('pointerdown', (pointer) => { hitZone._tapX = pointer.x; hitZone._tapY = pointer.y; });
     hitZone.on('pointerup', (pointer) => {
@@ -67,7 +67,7 @@ export function createCityMarkers(scene, cities, factions) {
     `;
     containerEl.appendChild(el);
 
-    markers.push({ cityId: city.id, el, circle, worldX: x, worldY: y - 26 });
+    markers.push({ cityId: city.id, el, circle, worldX: x, worldY: y - 30 });
   }
 }
 
@@ -128,92 +128,574 @@ function colorToHex(color) {
   return '#' + color.toString(16).padStart(6, '0');
 }
 
+// ============================================================
+//  城池造型系统 —— 四种地域风格，3D 等距视角
+// ============================================================
+
+/** 省份→建筑风格分组 */
+function _provinceGroup(province) {
+  const map = {
+    guanzhong: 'imperial', henan: 'imperial',
+    hebei: 'frontier', hedong: 'frontier',
+    huainan: 'water', jiangnan: 'water', zhenhai: 'water',
+    xichuan: 'southern', jingnan: 'southern', lingnan: 'southern'
+  };
+  return map[province] || 'imperial';
+}
+
+/** 每组建筑配色 + 尺寸 + 造型 */
+function _styleFor(group) {
+  switch (group) {
+    case 'imperial':  // 关中/河南 — 帝都：重檐庑殿顶，朱红宫墙
+      return {
+        shape: 'double-eave',
+        wall: 0xCC3333, wallLight: 0xDD5544, wallDark: 0x992222,
+        roof: 0x2A1008, roofBright: 0x6A3020, roofMid: 0x4A2012,
+        gold: 0xC4A060, goldBright: 0xDDB870,
+        pillar: 0xCC4444, pillarLight: 0xDD6666,
+        gate: 'wide-arch', gateW: 15, gateH: 11,
+        W: 54, H: 28, D: 8, platH: 4, platExt: 5,
+        roofH1: 6, roofH2: 5, eave1: 8, eave2: 4,
+      };
+    case 'frontier':  // 河北/河东 — 边塞：望楼烽燧，铁灰
+      return {
+        shape: 'watchtower',
+        wall: 0x556677, wallLight: 0x778899, wallDark: 0x334455,
+        roof: 0x1A1A22, roofBright: 0x3A3A4A, roofMid: 0x282838,
+        gold: 0x999999, goldBright: 0xAAAAAA,
+        pillar: 0x667788, pillarLight: 0x8899AA,
+        gate: 'rect', gateW: 8, gateH: 9,
+        W: 34, H: 30, D: 6, platH: 4, platExt: 4,
+        roofH1: 3, roofH2: 0, eave1: 2, eave2: 0,
+        towerW: 12, towerH: 10,
+      };
+    case 'water':     // 淮南/江南/镇海 — 水乡：粉墙黛瓦，月门水桥
+      return {
+        shape: 'water-town',
+        wall: 0x8899AA, wallLight: 0xAABBCC, wallDark: 0x667788,
+        roof: 0x0A0A1A, roofBright: 0x2A2A4A, roofMid: 0x181830,
+        gold: 0xB8A888, goldBright: 0xCCC0A0,
+        pillar: 0x99AABB, pillarLight: 0xBBCCDD,
+        stone: 0x8A8A80, stoneLight: 0xA0A098,
+        gate: 'moon', gateW: 11, gateH: 11,
+        W: 44, H: 22, D: 6, platH: 4, platExt: 4,
+        roofH1: 7, roofH2: 0, eave1: 8, eave2: 0,
+      };
+    case 'southern':  // 西川/荆南/岭南 — 蜀楚：楼阁飞檐，赭红暖调
+      return {
+        shape: 'pavilion',
+        wall: 0xCC6633, wallLight: 0xDD8855, wallDark: 0x994422,
+        roof: 0x2A1808, roofBright: 0x6A3820, roofMid: 0x4A2812,
+        gold: 0xC4A060, goldBright: 0xDDB870,
+        pillar: 0xBB5533, pillarLight: 0xDD7755,
+        gate: 'arch', gateW: 12, gateH: 10,
+        W: 44, H: 26, D: 7, platH: 4, platExt: 4,
+        roofH1: 6, roofH2: 0, eave1: 6, eave2: 0,
+        upperH: 10,
+      };
+    default:
+      return _styleFor('imperial');
+  }
+}
+
 /**
- * 3D 城楼图标——等角透视，带深度感
- * 主墙体 + 背墙偏移 + 顶面平行四边形 + 箭垛 + 角楼 + 城门拱
+ * 唐风城楼图标——四种地域造型，3D 等距，层次丰富。
+ * 所有城池共享：石基座 → 背墙 → 侧墙 → 屋顶 → 前墙 → 门 → 旗
  */
-function _drawCastle(gfx, cx, cy, color) {
-  const W = 38, H = 20;   // 主墙宽高
-  const D = 6;             // 3D 深度偏移量
+function _drawCastle(gfx, cx, cy, factionColor, province) {
+  const grp = _provinceGroup(province);
+  const st = _styleFor(grp);
+  const { W, H, D, platH, platExt } = st;
   const x0 = Math.round(cx - W / 2);
-  const y0 = Math.round(cy - H / 2) + 4; // 稍微往下，给顶面留空间
+  const y0 = Math.round(cy - H / 2) + 4;
 
-  // 颜色派生
-  const r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
-  const darkC  = ((r * 0.45 | 0) << 16) | ((g * 0.45 | 0) << 8) | (b * 0.45 | 0);
-  const lightC = (Math.min(255, r + 90) << 16) | (Math.min(255, g + 90) << 8) | Math.min(255, b + 90);
+  // 提取颜色分量
+  const fR = (factionColor >> 16) & 0xff;
+  const fG = (factionColor >> 8) & 0xff;
+  const fB = factionColor & 0xff;
+  const fDark  = ((fR * 0.5 | 0) << 16) | ((fG * 0.5 | 0) << 8) | (fB * 0.5 | 0);
+  const fLight = (Math.min(255, fR + 50) << 16) | (Math.min(255, fG + 50) << 8) | Math.min(255, fB + 50);
 
-  // ── 1. 地面阴影
-  gfx.fillStyle(0x000000, 0.28);
-  gfx.fillEllipse(cx + 2, y0 + H + 2, W + 10, 6);
+  // ── 地面阴影 —— 椭圆形，给城池"落地"的感觉
+  gfx.fillStyle(0x000000, 0.2);
+  gfx.fillEllipse(cx + 2, y0 + H + platH + 4, W + platExt * 2 + 14, 7);
 
-  // ── 2. 背墙（深色，偏移 D 像素）
-  gfx.fillStyle(darkC, 1);
+  // ── 石基座（背面 + 右侧面，被建筑遮挡的部分）
+  const px0 = x0 - platExt;
+  const py0 = y0 + H;
+  const pW = W + platExt * 2;
+
+  // 基座顶面（平行四边形，位于建筑下方）
+  gfx.fillStyle(0xB0A898, 0.9);
+  gfx.fillPoints([
+    { x: px0 + D, y: py0 - D },
+    { x: px0 + pW + D, y: py0 - D },
+    { x: px0 + pW, y: py0 },
+    { x: px0, y: py0 }
+  ], true);
+
+  // 基座右侧面
+  gfx.fillStyle(0x908878, 0.8);
+  gfx.fillPoints([
+    { x: px0 + pW, y: py0 },
+    { x: px0 + pW + D, y: py0 - D },
+    { x: px0 + pW + D, y: py0 - D + platH },
+    { x: px0 + pW, y: py0 + platH }
+  ], true);
+
+  // 基座前立面
+  gfx.fillStyle(0xC0B8A8, 1);
+  gfx.fillRect(px0, py0, pW, platH);
+  // 基座石缝线
+  gfx.fillStyle(0xA09888, 0.4);
+  gfx.fillRect(px0 + 1, py0 + Math.round(platH / 2), pW - 2, 1);
+
+  // ── 背墙（3D 深度 —— 建筑物"厚度"的暗面）
+  gfx.fillStyle(st.wallDark, 0.7);
   gfx.fillRect(x0 + D, y0 - D, W, H);
 
-  // ── 3. 右侧面（连接前后墙）
-  gfx.fillStyle(darkC, 0.85);
+  // ── 右侧面（3D 右侧厚度）
+  gfx.fillStyle(st.wallDark, 0.6);
   gfx.fillPoints([
-    { x: x0 + W,     y: y0 },
+    { x: x0 + W, y: y0 },
     { x: x0 + W + D, y: y0 - D },
     { x: x0 + W + D, y: y0 - D + H },
-    { x: x0 + W,     y: y0 + H }
+    { x: x0 + W, y: y0 + H }
   ], true);
 
-  // ── 4. 顶面（浅色平行四边形，营造厚度感）
-  gfx.fillStyle(lightC, 1);
-  gfx.fillPoints([
-    { x: x0,         y: y0 },
-    { x: x0 + W,     y: y0 },
-    { x: x0 + W + D, y: y0 - D },
-    { x: x0 + D,     y: y0 - D }
-  ], true);
+  // ── 按造型分派绘制主体
+  switch (st.shape) {
+    case 'double-eave': drawImperial(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
+    case 'watchtower':  drawFrontier(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
+    case 'water-town':  drawWaterTown(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
+    case 'pavilion':    drawPavilion(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
+    default:            drawImperial(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH);
+  }
+}
 
-  // ── 5. 前墙主体
-  gfx.fillStyle(color, 1);
-  gfx.fillRect(x0, y0, W, H);
+// ============================================================
+//  帝都 — 重檐庑殿顶（双层屋顶 + 斗拱 + 立柱 + 宽拱门）
+// ============================================================
+function drawImperial(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH) {
+  const { roofH1, roofH2, eave1, eave2, gold, goldBright } = st;
 
-  // ── 6. 箭垛（4个，带3D顶面）
-  const mW = 5, mH = 7, mGap = 3, mN = 4;
-  const mTotal = mN * mW + (mN - 1) * mGap;
-  const mx0 = Math.round(cx - mTotal / 2);
-  for (let i = 0; i < mN; i++) {
-    const bx = mx0 + i * (mW + mGap);
-    // 箭垛背面
-    gfx.fillStyle(darkC, 1);
-    gfx.fillRect(bx + D, y0 - mH - D, mW, mH);
-    // 箭垛正面
-    gfx.fillStyle(color, 1);
-    gfx.fillRect(bx, y0 - mH, mW, mH);
-    // 箭垛顶面（浅色）
-    gfx.fillStyle(lightC, 1);
-    gfx.fillPoints([
-      { x: bx,         y: y0 - mH },
-      { x: bx + mW,    y: y0 - mH },
-      { x: bx + mW + D, y: y0 - mH - D },
-      { x: bx + D,     y: y0 - mH - D }
-    ], true);
+  // — 下层屋顶（大飞檐）—
+  _drawRoof3D(gfx, st.roof, st.roofBright, st.roofMid, x0, y0, W, D, eave1, roofH1);
+
+  // 下层飞檐翘角
+  gfx.fillStyle(st.roofBright, 1);
+  gfx.fillTriangle(x0 - eave1, y0, x0 - eave1 + 7, y0, x0 - eave1 - 1, y0 - 6);
+  gfx.fillTriangle(x0 + W + eave1, y0, x0 + W + eave1 - 7, y0, x0 + W + eave1 + 1, y0 - 6);
+
+  // 下层屋顶金色脊线
+  gfx.fillStyle(gold, 0.7);
+  gfx.fillRect(x0 + 2, y0 - roofH1, W - 4, 1.5);
+
+  // — 斗拱层（下层屋顶之上的横枋 + 小方块）—
+  const dougongY = y0 - roofH1;
+  gfx.fillStyle(st.roof, 0.8);
+  gfx.fillRect(x0 + 4, dougongY - 3, W - 8, 3);
+  // 斗拱小方块（6 个，均匀分布）
+  gfx.fillStyle(st.roofBright, 0.6);
+  const dgCount = 6, dgSpacing = (W - 14) / (dgCount - 1);
+  for (let i = 0; i < dgCount; i++) {
+    const dx = x0 + 7 + Math.round(i * dgSpacing) - 1;
+    gfx.fillRect(dx, dougongY - 4, 3, 4);
   }
 
-  // ── 7. 角楼（左右各一，稍宽稍高）
-  const tW = 9, tExtraH = 5;
-  // 左角楼
-  gfx.fillStyle(darkC, 1);
-  gfx.fillRect(x0 + D - tW / 2 | 0, y0 - D - tExtraH, tW, H + tExtraH);
-  gfx.fillStyle(color, 1);
-  gfx.fillRect(x0 - tW / 2 | 0, y0 - tExtraH, tW, H + tExtraH);
-  // 右角楼
-  gfx.fillStyle(darkC, 1);
-  gfx.fillRect(x0 + W + D - tW / 2 | 0, y0 - D - tExtraH, tW, H + tExtraH);
-  gfx.fillStyle(color, 1);
-  gfx.fillRect(x0 + W - tW / 2 | 0, y0 - tExtraH, tW, H + tExtraH);
+  // — 上层屋顶（居中缩进）—
+  const ux0 = x0 + 10, uW = W - 20;
+  const uy0 = dougongY - 3;
+  _drawRoof3D(gfx, st.roof, st.roofBright, st.roofMid, ux0, uy0, uW, D, eave2, roofH2);
 
-  // ── 8. 城门拱洞
-  gfx.fillStyle(0x000000, 0.9);
-  gfx.fillRect(cx - 5, y0 + H - 9, 10, 9);
-  gfx.fillEllipse(cx, y0 + H - 9, 10, 8);
+  // 上层飞檐翘角
+  gfx.fillStyle(st.roofBright, 1);
+  gfx.fillTriangle(ux0 - eave2, uy0, ux0 - eave2 + 5, uy0, ux0 - eave2, uy0 - 4);
+  gfx.fillTriangle(ux0 + uW + eave2, uy0, ux0 + uW + eave2 - 5, uy0, ux0 + uW + eave2, uy0 - 4);
 
-  // ── 9. 白色描边
-  gfx.lineStyle(1.5, 0xffffff, 0.75);
+  // 正脊鸱吻（金色三角装饰）
+  const ridgeTop = uy0 - roofH2;
+  gfx.fillStyle(goldBright, 0.9);
+  gfx.fillTriangle(cx - 5, ridgeTop, cx + 5, ridgeTop, cx, ridgeTop - 5);
+
+  // — 前墙（朱红宫墙）—
+  gfx.fillStyle(st.wall, 1);
+  gfx.fillRect(x0, y0, W, H);
+
+  // 墙面砖缝纹理
+  _drawMasonryLines(gfx, x0 + 1, y0 + 3, W - 2, H - 13, st.wallDark, 5, 0.12);
+
+  // — 立柱（5 根，带柱础）—
+  const pillarCount = 5;
+  const pillarSpacing = (W - 6) / (pillarCount - 1);
+  for (let i = 0; i < pillarCount; i++) {
+    const px = x0 + 3 + Math.round(i * pillarSpacing);
+    // 柱身
+    gfx.fillStyle(st.pillar, 1);
+    gfx.fillRect(px - 1.5, y0 + 2, 3, H - 4);
+    // 柱身高光
+    gfx.fillStyle(st.pillarLight, 0.35);
+    gfx.fillRect(px - 0.5, y0 + 2, 1, H - 4);
+    // 柱础（小方块）
+    gfx.fillStyle(0x908070, 0.7);
+    gfx.fillRect(px - 2.5, y0 + H - 6, 5, 3);
+  }
+
+  // — 宽拱门（居中，金色门框）—
+  const gateW = st.gateW, gateH = st.gateH;
+  const gateX = cx - gateW / 2, gateY = y0 + H - gateH;
+  // 门洞
+  gfx.fillStyle(0x0A0808, 0.9);
+  gfx.fillRect(gateX + 1, gateY + 2, gateW - 2, gateH - 2);
+  // 门上弧顶
+  gfx.fillStyle(0x0A0808, 0.85);
+  gfx.fillEllipse(cx, gateY + 2, gateW - 2, 6);
+  // 金色门框
+  gfx.lineStyle(1.5, gold, 0.8);
+  gfx.strokeRect(gateX, gateY, gateW, gateH - 2);
+  // 门楣横梁
+  gfx.fillStyle(gold, 0.7);
+  gfx.fillRect(gateX - 1, gateY - 1, gateW + 2, 2);
+
+  // — 旗杆 —
+  const flagTop = ridgeTop - 10;
+  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop);
+
+  // — 金边（宫墙轮廓）—
+  gfx.lineStyle(1.5, gold, 0.5);
   gfx.strokeRect(x0, y0, W, H);
+}
+
+// ============================================================
+//  边塞 — 望楼烽燧（平顶垛口 + 望楼 + 箭窗 + 窄方门）
+// ============================================================
+function drawFrontier(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH) {
+  const { roofH1, eave1, gold, towerW, towerH } = st;
+
+  // — 平顶（窄檐口）—
+  _drawRoof3D(gfx, st.roof, st.roofBright, st.roofMid, x0, y0, W, D, eave1, roofH1);
+
+  // 垛口（5 个城垛，军事风格）
+  const battlementH = 5, battlementCount = 5;
+  const battlementW = (W - 6) / battlementCount;
+  gfx.fillStyle(st.roofBright, 1);
+  for (let i = 0; i < battlementCount; i++) {
+    const bx = x0 + 3 + Math.round(i * (battlementW + 1));
+    gfx.fillRect(bx, y0 - roofH1 - battlementH, Math.round(battlementW) - 1, battlementH);
+    // 垛口顶线
+    gfx.fillStyle(st.roofMid, 0.5);
+    gfx.fillRect(bx, y0 - roofH1 - battlementH, Math.round(battlementW) - 1, 1);
+    gfx.fillStyle(st.roofBright, 1);
+  }
+
+  // — 前墙（铁灰城墙）—
+  gfx.fillStyle(st.wall, 1);
+  gfx.fillRect(x0, y0, W, H);
+
+  // 墙面石砌纹理（方格状）
+  _drawStoneBlocks(gfx, x0 + 1, y0 + 3, W - 2, H - 12, st.wallDark, 5, 0.15);
+
+  // 箭窗（左右各一个窄长黑孔）
+  gfx.fillStyle(0x080808, 0.8);
+  gfx.fillRect(x0 + 5, y0 + 6, 3, 7);
+  gfx.fillRect(x0 + W - 8, y0 + 6, 3, 7);
+
+  // — 望楼（墙顶正中的窄高结构）—
+  const tx0 = cx - towerW / 2, ty0 = y0 - roofH1 - battlementH - towerH;
+  // 望楼背侧面
+  gfx.fillStyle(st.wallDark, 0.5);
+  gfx.fillRect(tx0 + 3, ty0 - 3, towerW, towerH);
+  // 望楼正面
+  gfx.fillStyle(st.wallLight, 1);
+  gfx.fillRect(tx0, ty0, towerW, towerH);
+  // 望楼石砌纹理
+  _drawStoneBlocks(gfx, tx0 + 1, ty0 + 2, towerW - 2, towerH - 4, st.wallDark, 4, 0.12);
+  // 望楼瞭望窗
+  gfx.fillStyle(0x080808, 0.85);
+  gfx.fillRect(tx0 + towerW / 2 - 2, ty0 + 3, 4, 5);
+  // 望楼小顶
+  gfx.fillStyle(st.roofBright, 1);
+  gfx.fillPoints([
+    { x: tx0 - 1, y: ty0 },
+    { x: tx0 + towerW + 1, y: ty0 },
+    { x: tx0 + towerW, y: ty0 - 3 },
+    { x: tx0, y: ty0 - 3 }
+  ], true);
+
+  // — 窄方门 —
+  const gateW = st.gateW, gateH = st.gateH;
+  const gateX = cx - gateW / 2, gateY = y0 + H - gateH;
+  gfx.fillStyle(0x080808, 0.9);
+  gfx.fillRect(gateX, gateY, gateW, gateH);
+  // 门框（铁色）
+  gfx.lineStyle(1.5, 0x777777, 0.7);
+  gfx.strokeRect(gateX, gateY, gateW, gateH);
+
+  // — 旗杆（从望楼顶升起）—
+  const flagTop = ty0 - 3 - 10;
+  _drawFlag(gfx, factionColor, cx, flagTop, ty0 - 3);
+
+  // — 铁灰边 —
+  gfx.lineStyle(1.5, 0x888888, 0.6);
+  gfx.strokeRect(x0, y0, W, H);
+}
+
+// ============================================================
+//  水乡 — 粉墙黛瓦 · 月门水桥（大飞檐 + 圆月门 + 花窗 + 桥 + 水纹）
+// ============================================================
+function drawWaterTown(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH) {
+  const { roofH1, eave1, gold, goldBright, stone, stoneLight } = st;
+
+  // — 屋顶（大飞檐，弧线感）—
+  _drawRoof3D(gfx, st.roof, st.roofBright, st.roofMid, x0, y0, W, D, eave1, roofH1);
+
+  // 飞檐大翘角
+  gfx.fillStyle(st.roofBright, 1);
+  gfx.fillTriangle(x0 - eave1, y0, x0 - eave1 + 8, y0, x0 - eave1 - 2, y0 - 7);
+  gfx.fillTriangle(x0 + W + eave1, y0, x0 + W + eave1 - 8, y0, x0 + W + eave1 + 2, y0 - 7);
+
+  // 屋脊线（淡金）
+  gfx.fillStyle(gold, 0.55);
+  gfx.fillRect(x0 + 3, y0 - roofH1, W - 6, 1);
+
+  // — 前墙（粉墙：上半白色，下半石基）—
+  const stoneLine = y0 + Math.round(H * 0.55);
+  // 上半粉墙
+  gfx.fillStyle(st.wall, 1);
+  gfx.fillRect(x0, y0, W, stoneLine - y0);
+  // 下半石基
+  gfx.fillStyle(stone, 1);
+  gfx.fillRect(x0, stoneLine, W, y0 + H - stoneLine);
+  // 石基纹理
+  _drawStoneBlocks(gfx, x0 + 2, stoneLine + 2, W - 4, y0 + H - stoneLine - 4, stoneLight, 3, 0.15);
+  // 粉墙石基分界线
+  gfx.fillStyle(st.wallDark, 0.3);
+  gfx.fillRect(x0, stoneLine, W, 1.5);
+
+  // 黑瓦压檐
+  gfx.fillStyle(st.roof, 0.6);
+  gfx.fillRect(x0, y0, W, 2);
+
+  // — 花窗（粉墙上的十字格窗）—
+  const winCX = cx, winCY = y0 + Math.round(H * 0.28);
+  const winHW = 5;
+  // 窗框
+  gfx.fillStyle(0x1A1A1A, 0.7);
+  gfx.fillRect(winCX - winHW, winCY - winHW, winHW * 2, winHW * 2);
+  // 十字格
+  gfx.fillStyle(st.wallLight, 0.5);
+  gfx.fillRect(winCX - 0.5, winCY - winHW + 1, 1, winHW * 2 - 2);
+  gfx.fillRect(winCX - winHW + 1, winCY - 0.5, winHW * 2 - 2, 1);
+
+  // — 圆形月门 —
+  const gateW = st.gateW, gateH = st.gateH;
+  const gateCY = y0 + H - gateH / 2 - 1;
+  // 门洞
+  gfx.fillStyle(0x0A0808, 0.9);
+  gfx.fillEllipse(cx, gateCY, gateW, gateH);
+  // 门框（石质圆环）
+  gfx.lineStyle(2, stone, 0.8);
+  gfx.strokeEllipse(cx, gateCY, gateW + 2, gateH + 2);
+
+  // — 门前小桥（拱形 + 栏杆柱）—
+  gfx.lineStyle(2, 0x6B5B4F, 0.55);
+  gfx.beginPath();
+  gfx.moveTo(cx - 9, y0 + H);
+  gfx.lineTo(cx - 4, y0 + H - 3);
+  gfx.lineTo(cx, y0 + H - 2);
+  gfx.lineTo(cx + 4, y0 + H - 3);
+  gfx.lineTo(cx + 9, y0 + H);
+  gfx.strokePath();
+  // 栏杆小柱
+  gfx.fillStyle(0x6B5B4F, 0.5);
+  for (let bx = cx - 8; bx <= cx + 6; bx += 4) {
+    gfx.fillRect(bx - 0.5, y0 + H - 3, 1, 3);
+  }
+
+  // — 水纹 —
+  gfx.fillStyle(0x6688CC, 0.3);
+  gfx.fillEllipse(cx, y0 + H + 3, W - 2, 5);
+
+  // — 旗杆 —
+  const flagTop = y0 - roofH1 - 10;
+  _drawFlag(gfx, factionColor, cx, flagTop, y0 - roofH1);
+
+  // — 淡金边 —
+  gfx.lineStyle(1, gold, 0.45);
+  gfx.strokeRect(x0, y0, W, H);
+}
+
+// ============================================================
+//  蜀楚 — 楼阁飞檐（大翘角 + 两层楼 + 栏杆 + 屋脊装饰）
+// ============================================================
+function drawPavilion(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH) {
+  const { roofH1, eave1, gold, goldBright, upperH } = st;
+  const floorBeamY = y0 + upperH;
+
+  // — 屋顶（大飞檐）—
+  _drawRoof3D(gfx, st.roof, st.roofBright, st.roofMid, x0, y0, W, D, eave1, roofH1);
+
+  // 飞檐大翘角
+  gfx.fillStyle(st.roofBright, 1);
+  gfx.fillTriangle(x0 - eave1, y0, x0 - eave1 + 7, y0, x0 - eave1 - 1, y0 - 7);
+  gfx.fillTriangle(x0 + W + eave1, y0, x0 + W + eave1 - 7, y0, x0 + W + eave1 + 1, y0 - 7);
+
+  // 屋脊装饰（正脊吻兽——金色尖顶）
+  const ridgeTop = y0 - roofH1;
+  gfx.fillStyle(goldBright, 0.9);
+  gfx.fillTriangle(cx - 4, ridgeTop, cx + 4, ridgeTop, cx, ridgeTop - 6);
+  // 脊线
+  gfx.fillStyle(gold, 0.6);
+  gfx.fillRect(x0 + 4, ridgeTop, W - 8, 1.5);
+
+  // — 上层楼（退进 3px 两侧）—
+  const ux0 = x0 + 3, uW = W - 6;
+  // 上层背侧面
+  gfx.fillStyle(st.wallDark, 0.5);
+  gfx.fillRect(ux0 + D, y0 - D, uW, upperH);
+  gfx.fillStyle(st.wallDark, 0.45);
+  gfx.fillPoints([
+    { x: ux0 + uW, y: y0 },
+    { x: ux0 + uW + D, y: y0 - D },
+    { x: ux0 + uW + D, y: y0 - D + upperH },
+    { x: ux0 + uW, y: y0 + upperH }
+  ], true);
+  // 上层正面
+  gfx.fillStyle(st.wallLight, 1);
+  gfx.fillRect(ux0, y0, uW, upperH);
+  // 上层窗（小方窗）
+  gfx.fillStyle(0x0A0808, 0.7);
+  gfx.fillRect(cx - 4, y0 + 4, 8, 5);
+
+  // — 栏杆（上层底部的横枋 + 小柱）—
+  const railY = floorBeamY;
+  gfx.fillStyle(st.wallDark, 0.6);
+  gfx.fillRect(ux0, railY - 2, uW, 2);
+  // 栏杆小柱
+  gfx.fillStyle(st.wall, 0.7);
+  const railPostCount = 6;
+  const railSpacing = (uW - 4) / (railPostCount - 1);
+  for (let i = 0; i < railPostCount; i++) {
+    const rx = ux0 + 2 + Math.round(i * railSpacing);
+    gfx.fillRect(rx - 0.5, railY - 4, 1, 4);
+  }
+
+  // — 楼层分隔横枋 —
+  gfx.fillStyle(st.wallDark, 0.5);
+  gfx.fillRect(x0 + 1, floorBeamY, W - 2, 2.5);
+  // 横枋高光
+  gfx.fillStyle(gold, 0.3);
+  gfx.fillRect(x0 + 1, floorBeamY, W - 2, 0.8);
+
+  // — 下层墙 —
+  gfx.fillStyle(st.wall, 1);
+  gfx.fillRect(x0, floorBeamY + 2.5, W, H - upperH - 2.5);
+
+  // 下层墙面纹理
+  _drawMasonryLines(gfx, x0 + 1, floorBeamY + 5, W - 2, H - upperH - 12, st.wallDark, 5, 0.1);
+
+  // — 圆拱门 —
+  const gateW = st.gateW, gateH = st.gateH;
+  const gateX = cx - gateW / 2, gateY = y0 + H - gateH;
+  gfx.fillStyle(0x0A0808, 0.9);
+  gfx.fillRect(gateX + 1, gateY + 2, gateW - 2, gateH - 2);
+  gfx.fillEllipse(cx, gateY + 2, gateW - 2, 6);
+  // 门框（金色）
+  gfx.lineStyle(1.5, gold, 0.7);
+  gfx.strokeRect(gateX, gateY, gateW, gateH - 2);
+
+  // — 旗杆 —
+  const flagTop = ridgeTop - 6 - 10;
+  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop - 6);
+
+  // — 金边 —
+  gfx.lineStyle(1.5, gold, 0.55);
+  gfx.strokeRect(x0, y0, W, H);
+}
+
+// ============================================================
+//  共享：3D 屋顶（背面暗梯形 + 正面亮梯形 + 瓦线纹理）
+// ============================================================
+function _drawRoof3D(gfx, roofColor, roofBright, roofMid, x0, y0, W, D, eave, roofH) {
+  if (roofH <= 0) return;
+
+  // 屋顶背面（3D 深度侧）
+  gfx.fillStyle(roofColor, 0.75);
+  gfx.fillPoints([
+    { x: x0 - eave + D,     y: y0 - D },
+    { x: x0 + W + eave + D, y: y0 - D },
+    { x: x0 + W + D,        y: y0 - D - roofH },
+    { x: x0 + D,            y: y0 - D - roofH }
+  ], true);
+
+  // 屋顶正面（亮面）
+  gfx.fillStyle(roofBright, 1);
+  gfx.fillPoints([
+    { x: x0 - eave,     y: y0 },
+    { x: x0 + W + eave, y: y0 },
+    { x: x0 + W,        y: y0 - roofH },
+    { x: x0,            y: y0 - roofH }
+  ], true);
+
+  // 瓦线纹理（横向线条模拟瓦片排列）
+  if (roofH >= 4) {
+    gfx.fillStyle(roofMid, 0.35);
+    for (let ty = y0 - 1; ty > y0 - roofH; ty -= 2) {
+      const t = (y0 - ty) / roofH;  // 0=底部 1=顶部
+      const inset = Math.round(eave * (1 - t));
+      gfx.fillRect(x0 + inset, ty, W - inset * 2, 0.8);
+    }
+  }
+
+  // 屋顶顶线（脊线高光）
+  gfx.fillStyle(roofMid, 0.25);
+  gfx.fillRect(x0 + 1, y0 - roofH, W - 2, 1);
+}
+
+// ============================================================
+//  共享：墙面砖缝纹理（横向线条）
+// ============================================================
+function _drawMasonryLines(gfx, rx, ry, rw, rh, color, spacing, alpha) {
+  gfx.fillStyle(color, alpha);
+  for (let my = ry; my < ry + rh; my += spacing) {
+    gfx.fillRect(rx, my, rw, 0.6);
+  }
+}
+
+// ============================================================
+//  共享：石砌纹理（方格状，横向+纵向短线）
+// ============================================================
+function _drawStoneBlocks(gfx, rx, ry, rw, rh, color, spacing, alpha) {
+  gfx.fillStyle(color, alpha);
+  // 横线
+  for (let my = ry; my < ry + rh; my += spacing) {
+    gfx.fillRect(rx, my, rw, 0.6);
+  }
+  // 纵向短线（每行错开）
+  let rowIdx = 0;
+  for (let my = ry; my < ry + rh; my += spacing) {
+    const offset = (rowIdx % 2) * Math.round(spacing / 2);
+    for (let mx = rx + offset; mx < rx + rw; mx += spacing * 2) {
+      gfx.fillRect(mx, my, 0.6, Math.min(spacing, ry + rh - my));
+    }
+    rowIdx++;
+  }
+}
+
+// ============================================================
+//  共享：旗杆 + 三角旗
+// ============================================================
+function _drawFlag(gfx, factionColor, px, top, bottom) {
+  // 旗杆
+  gfx.fillStyle(0x3D2B1F, 1);
+  gfx.fillRect(px - 1, top, 2, bottom - top + 2);
+  // 杆顶小球
+  gfx.fillStyle(0xD4C5A0, 0.8);
+  gfx.fillCircle(px, top, 2);
+  // 三角旗
+  gfx.fillStyle(factionColor, 1);
+  gfx.fillTriangle(px + 1, top + 2, px + 1, top + 7, px + 7, top + 4);
+  // 旗尾飘带
+  gfx.fillStyle(factionColor, 0.6);
+  gfx.fillTriangle(px - 2, top + 7, px + 1, top + 7, px + 1, top + 12);
 }

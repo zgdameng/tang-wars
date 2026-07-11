@@ -10,7 +10,7 @@ function getPanel() {
   panelEl.id = 'turn-report';
   panelEl.style.cssText = `
     display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:480px; max-height:70vh; overflow-y:auto;
+    width: min(480px, 95vw); max-height: 85vh; overflow-y: auto;
     background:rgba(247,242,232,0.97); border:2px solid #D4C5A0;
     border-radius:8px; padding:18px; color:#3D2B1F;
     font-family:'Microsoft YaHei',sans-serif; z-index:1000; user-select:none;

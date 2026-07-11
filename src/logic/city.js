@@ -33,6 +33,8 @@ export function createCity(opts = {}) {
     commerce: opts.commerce ?? 3,
     defense: opts.defense ?? 0,
     stability: opts.stability ?? 70,
+    province: opts.province || '',
+    desc: opts.desc || '',
     garrison: [],           // [armyId, ...]
     governor: null,         // generalId 或 null
     underSiege: false       // 是否被围攻

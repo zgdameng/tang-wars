@@ -10,7 +10,7 @@ import { createTurnPanel, setTurnDisplay, removeTurnPanel } from '../ui/turn-pan
 import { applyBattleResult } from '../logic/battle/battle-resolution.js';
 import { showDiplomacyPanel, hideDiplomacyPanel } from '../ui/diplomacy-panel.js';
 import { showSavePanel, hideSavePanel } from '../ui/save-panel.js';
-import { showArmyPanel, hideArmyPanel } from '../ui/army-panel.js';
+import { showArmyPanel, hideArmyPanel, isArmyPanelOpen } from '../ui/army-panel.js';
 import { showEspionagePanel, hideEspionagePanel } from '../ui/espionage-panel.js';
 import { showTurnReport } from '../ui/turn-report.js';
 import { saveGame } from '../logic/save-load.js';
@@ -46,9 +46,10 @@ export class MapScene extends Phaser.Scene {
     // 相机：有边界 + 拖拽平移 + 滚轮缩放
     this.setupCamera();
 
-    // 城池点击 → 弹出信息面板（捏合缩放冷却期内不触发）
+    // 城池点击 → 弹出信息面板（部队面板开着时不触发，避免盖掉部队面板）
     this.events.on('city-clicked', (cityId) => {
       if (this._pinchCooldown) return;
+      if (isArmyPanelOpen()) return; // 部队面板开着，不弹城面板
       playClick();
       const city = this.gameState.cities[cityId];
       if (!city) return;
@@ -105,7 +106,9 @@ export class MapScene extends Phaser.Scene {
     // 回合面板（右下角）
     createTurnPanel(() => {
       playDrum();
+      console.log('[DEBUG] executeTurn 开始, turn=', this.gameState.turn);
       const result = executeTurn(this.gameState);
+      console.log('[DEBUG] executeTurn 结束, result.encounters=', result.encounters);
       setTurnDisplay(result.turn);
       saveGame(this.gameState, 1, '自动存档');
       // 回合后刷新部队显示（可能有新征兵/AI出兵）
@@ -115,6 +118,7 @@ export class MapScene extends Phaser.Scene {
 
       if (result.encounters && result.encounters.length > 0) {
         this.pendingEncounter = result.encounters[0];
+        console.log('[DEBUG] 启动战斗场景, encounter=', JSON.stringify({type: this.pendingEncounter.type, atkId: this.pendingEncounter.attacker?.id, defId: this.pendingEncounter.defender?.id}));
         this.scene.sleep('MapScene');
         this.scene.launch('BattleScene', { encounter: this.pendingEncounter });
       }
@@ -143,8 +147,7 @@ export class MapScene extends Phaser.Scene {
       }
     });
 
-    // 镜头归零（世界已偏移，地图自然居中）
-    this.cameras.main.setScroll(0, 0);
+    // 镜头已在 setupCamera 里居中，不再归零
 
     // 首次同步 DOM 标签
     updateCityLabelPositions(this.cameras.main);
@@ -168,6 +171,8 @@ export class MapScene extends Phaser.Scene {
     const fitZoom = Math.min(cam.width / MAP_W, cam.height / MAP_H);
     const minZoom = 0.50;
     cam.setZoom(Math.max(minZoom, fitZoom));
+    // 镜头居中——地图中心对准屏幕中心
+    cam.centerOn(MAP_W / 2 + WORLD_OX, MAP_H / 2 + WORLD_OY);
 
     // 缩放工具函数
     this._zoomAt = (camera, mx, my, delta) => {

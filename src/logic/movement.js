@@ -47,8 +47,10 @@ export function advanceAllMovements(state) {
     if (army.state !== 'moving') continue;
 
     army.moveTurnsRemaining--;
+    console.log('[DEBUG] 行军推进, army=', army.id, '剩余回合=', army.moveTurnsRemaining);
 
     if (army.moveTurnsRemaining <= 0) {
+      console.log('[DEBUG] 部队到达目标!', army.id, '位置=', army.moveTarget);
       army.position = { ...army.moveTarget };
       army.state = 'idle';
       army.moveTarget = null;
@@ -90,10 +92,12 @@ export function checkCombatEncounters(state) {
       if (city.owner === army.factionId) continue;
 
       if (army.position.x === city.x && army.position.y === city.y) {
+        console.log('[DEBUG] 检测到攻城! army=', army.id, 'at', army.position, 'city=', city.id, 'at', {x:city.x, y:city.y});
         encounters.push({ type: 'siege', attacker: army, defender: city });
       }
     }
   }
 
+  console.log('[DEBUG] checkCombatEncounters 结果: ', encounters.length, '场战斗');
   return encounters.length > 0 ? encounters : null;
 }

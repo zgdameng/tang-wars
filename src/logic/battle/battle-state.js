@@ -43,7 +43,7 @@ export function createBattleState(opts) {
       siegeBonus: opts.isSiege ? 5 : 0  // 守城方额外防御
     },
     time: 0,           // 已战斗时间（秒）
-    maxTime: 45,       // 45 秒上限，超时判守方胜（模拟时间，实际约 15-45 秒）
+    maxTime: 15,       // 15 秒上限（模拟时间），自动5倍速=3秒结束
     events: [],
     winner: null
   };

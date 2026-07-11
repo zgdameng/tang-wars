@@ -18,15 +18,19 @@ export class BattleScene extends Phaser.Scene {
   init(data) {
     // data 可能是 { encounter: {...} } 包装对象，解包取出真正的遭遇战数据
     this.encounter = data.encounter || data;
+    console.log('[DEBUG] BattleScene.init, data keys=', Object.keys(data), 'encounter type=', this.encounter?.type);
   }
 
   create() {
+    console.log('[DEBUG] BattleScene.create 开始');
     const W = 1024, H = 768;
     this.cameras.main.setBackgroundColor('#1a2218');
 
     const enc = this.encounter;
+    console.log('[DEBUG] enc=', {type: enc?.type, isSiege: enc?.isSiege, atk: !!enc?.attacker, def: !!enc?.defender});
     // 兼容两种命名：isSiege（布尔）或 type（'siege'/'field'）
     const isSiege = enc.isSiege || enc.type === 'siege';
+    console.log('[DEBUG] isSiege=', isSiege, 'atkFactionId=', enc?.attacker?.factionId);
 
     this.battle = createBattleState({
       terrain: enc.terrain || 'plains',
@@ -42,6 +46,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // 背景——地形示意
+    const terrain = enc.terrain || 'plains';
     const bgColor = terrain === 'river' ? 0x1a2a3a : terrain === 'hills' ? 0x2a2a1a : 0x2a2a1a;
     this.add.rectangle(W / 2, H / 2, W, H, bgColor, 0.3);
 
@@ -94,9 +99,16 @@ export class BattleScene extends Phaser.Scene {
       .on('pointerover', function () { this.setColor('#ffff88'); })
       .on('pointerout', function () { this.setColor('#cccc88'); });
 
-    this.autoMode = false;
-    this.battleSpeed = 1;
+    this.autoMode = true;   // 默认自动战斗，避免低帧率下战斗卡住
+    this.battleSpeed = 5;   // 5倍速
     this.timeAccum = 0;
+
+    // 用 setInterval 驱动战斗模拟，不受 requestAnimationFrame 帧率影响
+    this._battleTimer = this.time.addEvent({
+      delay: 100,           // 每 100ms 推进一步
+      loop: true,
+      callback: () => this.battleTick(0.1)
+    });
 
     // 胜负显示（初始隐藏）
     this.resultText = this.add.text(W / 2, H / 2, '', {
@@ -171,10 +183,13 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(1, 0);
   }
 
-  update(_time, delta) {
-    if (this.battle.winner) return;
+  // 用 setInterval 驱动的战斗步骤，不依赖 requestAnimationFrame
+  battleTick(dt) {
+    if (this.battle.winner) {
+      if (this._battleTimer) { this._battleTimer.destroy(); this._battleTimer = null; }
+      return;
+    }
 
-    const dt = delta / 1000;
     this.timeAccum += dt;
 
     // 自动模式下加速
@@ -211,7 +226,7 @@ export class BattleScene extends Phaser.Scene {
       if (closestDist > 60) {
         const dx = closestSprite.container.x - sprite.container.x;
         const dy = closestSprite.container.y - sprite.container.y;
-        const move = (unit.speed || 3) * 30 * simDt;
+        const move = (unit.speed || 3) * 80 * simDt;  // 提速 80→让部队更快交锋
         sprite.container.x += (dx / closestDist) * move;
         sprite.container.y += (dy / closestDist) * move;
       }
@@ -256,9 +271,10 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // 检查结束
+    // 检查结束（立即标记 winner，防止 500ms 延迟期内重复触发）
     const winner = checkBattleEnd(this.battle);
-    if (winner) {
+    if (winner && !this.battle.winner) {
+      this.battle.winner = winner;
       this.time.delayedCall(500, () => this.endBattle(winner));
     }
   }
@@ -303,6 +319,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   endBattle(winner) {
+    console.log('[DEBUG] BattleScene.endBattle, winner=', winner);
+    // 清除定时器
+    if (this._battleTimer) { this._battleTimer.destroy(); this._battleTimer = null; }
     this.battle.winner = winner;
     const W = 1024, H = 768;
 

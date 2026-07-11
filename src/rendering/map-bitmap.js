@@ -1,21 +1,18 @@
 /**
- * 三国志风格地图生成器 v6
+ * 三国志风格地图生成器 v7
  *
  * 改：
- *   势力边界柔化（双势力混合过渡，去方块感）
- *   城池画在地图上（色圈+白边+城名）
- *   山川河流走向调准
- *   地名标注加粗加亮
+ *   渲染分辨率提升至 1200×1000，消除方块感
+ *   势力圈半径加大 + 二次方衰减，消除圆形边界
  */
 
 export const MAP_W = 2400;
 export const MAP_H = 2000;
 export const CELL_W = MAP_W / 30;
 export const CELL_H = MAP_H / 30;
-const S_W = 800, S_H = 667;
+const S_W = 1200, S_H = 1000;   // 渲染分辨率提升，消除方块
 
 // 世界偏移量——让地图在镜头(0,0)时自然居中于屏幕
-// (视口半宽 / 初始缩放) - 地图半宽 = (1280/2/0.342) - 1200 ≈ 671
 export const WORLD_OX = 671;
 export const WORLD_OY = 53;
 
@@ -37,7 +34,7 @@ export function generateMapBitmap(state) {
   paintRivers(ctx);
   paintMountains(ctx);
   paintForests(ctx);
-  paintCities(ctx, state);   // ← 城池直接画在大图上
+  paintCities(ctx, state);
   paintLabels(ctx);
 
   return big;
@@ -61,67 +58,41 @@ function buildHeightmap() {
 }
 
 function baseElev(col, row) {
-  // === 特殊区域（优先判断，会覆盖下面的通用规则）===
+  // === 特殊区域 ===
+  if (col >= 1.5 && col <= 5 && row >= 14 && row <= 18.5) return 24;   // 四川盆地
+  if (col >= 4 && col <= 8.5 && row >= 8.5 && row <= 10.8) return 28; // 关中平原
 
-  // 四川盆地（高山环绕中的低洼绿洲，成都所在）
-  if (col >= 1.5 && col <= 5 && row >= 14 && row <= 18.5) return 24;
-
-  // 关中平原（渭河谷地，长安、凤翔所在）
-  if (col >= 4 && col <= 8.5 && row >= 8.5 && row <= 10.8) return 28;
-
-  // === 通用海拔规则（西高东低三级阶梯）===
-
-  // 第一阶梯：青藏高原主体
-  if (col < 3.5) return 220;
-  // 青藏高原南延
-  if (col < 5 && row > 13 && row < 19) return 210;
-  // 高原东缘陡降（横断山脉）
-  if (col < 5.5) return 170;
+  // === 三级阶梯 ===
+  if (col < 3.5) return 220;                                    // 青藏高原
+  if (col < 5 && row > 13 && row < 19) return 210;              // 高原南延
+  if (col < 5.5) return 170;                                     // 横断山脉
   if (col < 6.5) return 130;
   if (col < 7.5) return 95;
 
-  // 秦岭（东西向高脊，黄河长江分水岭，cols 5-9, rows 8.8-11.5）
+  // 秦岭
   if (row > 8.8 && row < 11.5 && col >= 5 && col < 9.5)
     return 128 - Math.abs(row - 10.2) * 14;
-
-  // 大巴山（秦岭以南平行山脉）
+  // 大巴山
   if (row > 12 && row < 14.5 && col >= 5 && col < 9) return 96;
-
-  // 黄土高原（第二阶梯，秦岭以北、太行以西）
+  // 黄土高原
   if (col >= 7 && col < 10 && row >= 4 && row < 8.5) return 68;
-
-  // 太行山（华北平原西界，南北向窄脊，cols 13-15）
+  // 太行山
   if (col >= 13 && col < 15 && row >= 3.5 && row < 11) return 88;
-
-  // 巫山/雪峰山（第二→第三阶梯过渡，长江三峡段，cols 10-12, rows 13-16）
+  // 巫山/雪峰山
   if (col >= 10 && col < 12.5 && row >= 13 && row < 16) return 66;
-
-  // 南岭（岭南以北东西向分水岭）
+  // 南岭
   if (row >= 19.2 && row < 20.8 && col > 5 && col < 18.5) return 70;
-
-  // 武夷山/浙闽丘陵（东南沿海山脉）
+  // 武夷山/浙闽丘陵
   if (col >= 18.5 && col < 21.5 && row >= 16 && row < 20.5) return 76;
 
-  // === 第三阶梯：平原/低地 ===
-
-  // 华北平原（河北到中原北部）
-  if (col >= 10 && row >= 4 && row < 9) return 13;
-  // 中原（洛阳、汴州、许州一带）
-  if (col >= 10 && col < 18 && row >= 9 && row < 14) return 17;
-  // 长江中下游平原（江陵、扬州一带）
-  if (col >= 10 && col < 22 && row >= 14 && row < 19.2) return 10;
-
-  // 东部沿海低地
-  if (col >= 22 && row >= 12 && row < 19.2) return 6;
-
-  // 江南丘陵（长江以南、南岭以北）
-  if (row >= 19.2 && row < 24 && col >= 8) return 36;
-
-  // 岭南（南岭以南）
-  if (row >= 24) return 30;
-
-  // 北方草原（蒙古高原南缘）
-  if (row < 4) return 50;
+  // === 第三阶梯平原 ===
+  if (col >= 10 && row >= 4 && row < 9) return 13;               // 华北平原
+  if (col >= 10 && col < 18 && row >= 9 && row < 14) return 17;  // 中原
+  if (col >= 10 && col < 22 && row >= 14 && row < 19.2) return 10; // 长江中下游
+  if (col >= 22 && row >= 12 && row < 19.2) return 6;             // 东部沿海
+  if (row >= 19.2 && row < 24 && col >= 8) return 36;             // 江南丘陵
+  if (row >= 24) return 30;                                       // 岭南
+  if (row < 4) return 50;                                         // 北方草原
 
   return 26;
 }
@@ -149,7 +120,7 @@ function hash2d(x, y, s) {
 function clamp(v) { return Math.max(0, Math.min(255, v)); }
 
 // ============================================================
-//  小画布渲染
+//  小画布渲染 — 唐风暖色系
 // ============================================================
 function renderSmall(hm, state) {
   const canvas = document.createElement('canvas');
@@ -164,6 +135,7 @@ function renderSmall(hm, state) {
       const elev = hm[y * S_W + x];
       const shade = computeShade(hm, x, y);
 
+      // 原版鲜绿色板——有游戏感的自然地形
       let r, g, b;
       if (elev < 3)       { r = 32; g = 72; b = 148; }
       else if (elev < 8)  { const t = (elev - 3) / 5; r = 52 + t * 20; g = 108 + t * 8; b = 152 - t * 8; }
@@ -178,20 +150,21 @@ function renderSmall(hm, state) {
       g = clamp(Math.round(g * shade));
       b = clamp(Math.round(b * shade));
 
-      // 势力色——双势力混合过渡，无方块边界
+      // 势力色——大半径软过渡，消除圆圈边界
       if (nearInfo && elev >= 5) {
         const ni = nearInfo[y * S_W + x];
         if (ni && ni.f1) {
           const fc1 = factionRGB(ni.f1, state);
           const fc2 = ni.f2 ? factionRGB(ni.f2, state) : null;
-          const w1 = Math.max(0, 1 - ni.d1 / 150);
-          const w2 = fc2 ? Math.max(0, 1 - ni.d2 / 150) : 0;
+          // 二次方衰减：边缘更柔和，不会出现明显的圆形截止线
+          const w1 = Math.max(0, 1 - ni.d1 / 360) ** 2;
+          const w2 = fc2 ? Math.max(0, 1 - ni.d2 / 360) ** 2 : 0;
           const tw = w1 + w2;
-          if (tw > 0.01 && fc1) {
+          if (tw > 0.005 && fc1) {
             let br = fc1.r * w1, bg = fc1.g * w1, bb = fc1.b * w1;
             if (fc2) { br += fc2.r * w2; bg += fc2.g * w2; bb += fc2.b * w2; }
             br /= tw; bg /= tw; bb /= tw;
-            const alpha = Math.min(0.28, tw * 0.45);
+            const alpha = Math.min(0.28, tw * 0.55);
             r = clamp(Math.round(r * (1 - alpha) + br * alpha));
             g = clamp(Math.round(g * (1 - alpha) + bg * alpha));
             b = clamp(Math.round(b * (1 - alpha) + bb * alpha));
@@ -218,7 +191,7 @@ function buildNearInfo(state) {
   for (const city of cities) {
     const cx = Math.round((city.x / 30) * S_W);
     const cy = Math.round((city.y / 30) * S_H);
-    const R = 160;
+    const R = 360;  // 大半径让势力圈充分重叠，消除明显的圆形边界
     for (let dy = -R; dy <= R; dy++) {
       for (let dx = -R; dx <= R; dx++) {
         const px = cx + dx, py = cy + dy;
@@ -257,7 +230,7 @@ function computeShade(hm, x, y) {
 }
 
 // ============================================================
-//  地面纹理
+//  地面纹理 — 宣纸纤维感
 // ============================================================
 function addGroundGrain(ctx, hm) {
   const step = 2;
@@ -281,61 +254,29 @@ function addGroundGrain(ctx, hm) {
 }
 
 // ============================================================
-//  河流——调准走向
-//  黄河"几"字弯：源出青海→向北到河套→向南经河中→向东过洛阳汴州→入海
-//  长江：出四川盆地→穿三峡→过江陵→经扬州→入海
-//  汉江：秦岭以南→流经襄阳→在武汉附近汇入长江
+//  河流——青灰墨色，更宽更有水墨感
 // ============================================================
 function paintRivers(ctx) {
   const yellow = [
-    { x: 280, y: 367 },   // 源头（青海，col≈3,row≈5）
-    { x: 360, y: 280 },   // 向北拐
-    { x: 440, y: 233 },   // 河套最北端
-    { x: 520, y: 300 },
-    { x: 600, y: 400 },
-    { x: 700, y: 500 },
-    { x: 800, y: 600 },   // 向南到潼关附近
-    { x: 840, y: 633 },   // 经过河中（col≈10,row≈9）
-    { x: 960, y: 667 },
-    { x: 1080, y: 700 },  // 经过洛阳（col≈13,row≈10）
-    { x: 1200, y: 700 },
-    { x: 1320, y: 700 },  // 经过汴州（col≈16,row≈10）
-    { x: 1480, y: 667 },
-    { x: 1640, y: 600 },
-    { x: 1840, y: 500 },
-    { x: 2040, y: 433 },
-    { x: 2240, y: 380 },
-    { x: 2395, y: 370 },  // 入海
+    { x: 280, y: 367 }, { x: 360, y: 280 }, { x: 440, y: 233 },
+    { x: 520, y: 300 }, { x: 600, y: 400 }, { x: 700, y: 500 },
+    { x: 800, y: 600 }, { x: 840, y: 633 }, { x: 960, y: 667 },
+    { x: 1080, y: 700 }, { x: 1200, y: 700 }, { x: 1320, y: 700 },
+    { x: 1480, y: 667 }, { x: 1640, y: 600 }, { x: 1840, y: 500 },
+    { x: 2040, y: 433 }, { x: 2240, y: 380 }, { x: 2395, y: 370 },
   ];
   const yangtze = [
-    { x: 160, y: 1033 },  // 源头（青藏高原东）
-    { x: 240, y: 1067 },
-    { x: 360, y: 1100 },  // 四川盆地（成都南，col≈4,row≈16）
-    { x: 480, y: 1100 },
-    { x: 600, y: 1133 },  // 三峡（col≈7,row≈16.5）
-    { x: 720, y: 1167 },
-    { x: 840, y: 1200 },
-    { x: 920, y: 1233 },  // 经过江陵（col≈11,row≈18）
-    { x: 1040, y: 1200 },
-    { x: 1160, y: 1167 },
-    { x: 1320, y: 1167 },
-    { x: 1480, y: 1167 },
-    { x: 1640, y: 1167 },
-    { x: 1720, y: 1167 }, // 经过扬州（col≈21,row≈17）
-    { x: 1880, y: 1200 },
-    { x: 2080, y: 1233 },
-    { x: 2320, y: 1233 },
-    { x: 2395, y: 1235 }, // 入海
+    { x: 160, y: 1033 }, { x: 240, y: 1067 }, { x: 360, y: 1100 },
+    { x: 480, y: 1100 }, { x: 600, y: 1133 }, { x: 720, y: 1167 },
+    { x: 840, y: 1200 }, { x: 920, y: 1233 }, { x: 1040, y: 1200 },
+    { x: 1160, y: 1167 }, { x: 1320, y: 1167 }, { x: 1480, y: 1167 },
+    { x: 1640, y: 1167 }, { x: 1720, y: 1167 }, { x: 1880, y: 1200 },
+    { x: 2080, y: 1233 }, { x: 2320, y: 1233 }, { x: 2395, y: 1235 },
   ];
   const hanjiang = [
-    { x: 600, y: 833 },   // 发源秦岭南麓（col≈7,row≈12）
-    { x: 680, y: 900 },
-    { x: 800, y: 967 },
-    { x: 920, y: 1033 },
-    { x: 1000, y: 1067 },
-    { x: 1080, y: 1100 }, // 穿过襄阳（col≈13,row≈16）
-    { x: 1160, y: 1133 },
-    { x: 1240, y: 1167 }, // 武汉附近汇入长江（col≈15,row≈17）
+    { x: 600, y: 833 }, { x: 680, y: 900 }, { x: 800, y: 967 },
+    { x: 920, y: 1033 }, { x: 1000, y: 1067 }, { x: 1080, y: 1100 },
+    { x: 1160, y: 1133 }, { x: 1240, y: 1167 },
   ];
   const minjiang = [
     { x: 100, y: 967 }, { x: 160, y: 1000 }, { x: 220, y: 1033 }, { x: 260, y: 1050 },
@@ -383,7 +324,7 @@ function smoothPath(pts) {
 }
 
 // ============================================================
-//  鱼骨山脉
+//  鱼骨山脉 — 水墨皴法风格
 // ============================================================
 function paintMountains(ctx) {
   const ridges = [
@@ -446,7 +387,7 @@ function getPathAngle(points, t) {
 }
 
 // ============================================================
-//  密林
+//  密林 — 墨绿色点
 // ============================================================
 function paintForests(ctx) {
   const patches = [
@@ -486,7 +427,6 @@ function paintForests(ctx) {
 // ============================================================
 function paintCities(ctx, state) {
   for (const city of Object.values(state.cities)) {
-    // 用原始坐标（不加 WORLD_OFFSET），因为画在大图 canvas 上
     const px = Math.round(city.x * CELL_W + CELL_W / 2);
     const py = Math.round(city.y * CELL_H + CELL_H / 2);
     const faction = state.factions[city.owner];
@@ -506,7 +446,7 @@ function paintCities(ctx, state) {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath(); ctx.arc(px - 2, py - 2, 3.5, 0, Math.PI * 2); ctx.fill();
 
-    // 城名（白字黑边）
+    // 城名
     ctx.font = 'bold 15px "Microsoft YaHei","SimHei",sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.strokeStyle = '#000000'; ctx.lineWidth = 3.5;
@@ -517,10 +457,10 @@ function paintCities(ctx, state) {
 }
 
 // ============================================================
-//  地名标注——加粗加亮，和周围颜色明显区分
+//  地名标注
 // ============================================================
 function paintLabels(ctx) {
-  // 山名——暖白字深棕边
+  // 山名
   ctx.save();
   ctx.font = 'bold 28px "Microsoft YaHei","SimHei",sans-serif';
   ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
@@ -550,12 +490,12 @@ function paintLabels(ctx) {
   }
   ctx.restore();
 
-  // 河名——亮蓝字深蓝边
+  // 河名
   ctx.save();
   ctx.font = 'bold 30px "Microsoft YaHei","SimHei",sans-serif';
   ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  ctx.fillStyle = '#e0f0ff';
-  ctx.strokeStyle = '#0a2840'; ctx.lineWidth = 4;
+  ctx.fillStyle = '#e8ecf2';
+  ctx.strokeStyle = '#1a2430'; ctx.lineWidth = 4;
 
   const rivers = [
     { t: '黄  河', x: 1100, y: 680, a: -0.02 },
