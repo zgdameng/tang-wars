@@ -20,6 +20,17 @@ export function gridToPixel(col, row) {
   return { x: Math.round(col * CELL_W + CELL_W / 2 + WORLD_OX), y: Math.round(row * CELL_H + CELL_H / 2 + WORLD_OY) };
 }
 
+export function getTerrainPalette(elev) {
+  if (elev < 3) return [25, 54, 92];
+  if (elev < 8) return [56, 90, 102];
+  if (elev < 20) return [93, 118, 59];
+  if (elev < 50) return [104, 126, 65];
+  if (elev < 95) return [137, 111, 64];
+  if (elev < 150) return [128, 103, 75];
+  if (elev < 205) return [151, 142, 120];
+  return [205, 204, 192];
+}
+
 // ============================================================
 export function generateMapBitmap(state) {
   const hm = buildHeightmap();
@@ -136,15 +147,7 @@ function renderSmall(hm, state) {
       const shade = computeShade(hm, x, y);
 
       // 原版鲜绿色板——有游戏感的自然地形
-      let r, g, b;
-      if (elev < 3)       { r = 32; g = 72; b = 148; }
-      else if (elev < 8)  { const t = (elev - 3) / 5; r = 52 + t * 20; g = 108 + t * 8; b = 152 - t * 8; }
-      else if (elev < 20) { const t = (elev - 8) / 12; r = 148 - t * 22; g = 170 + t * 12; b = 78 + t * 16; }
-      else if (elev < 50) { const t = (elev - 20) / 30; r = 126 + t * 44; g = 182 - t * 38; b = 94 - t * 20; }
-      else if (elev < 95) { const t = (elev - 50) / 45; r = 170 - t * 5; g = 144 - t * 28; b = 74 - t * 12; }
-      else if (elev < 150){ const t = (elev - 95) / 55; r = 165 + t * 28; g = 116 + t * 44; b = 62 + t * 52; }
-      else if (elev < 205){ const t = (elev - 150) / 55; r = 193 + t * 40; g = 160 + t * 50; b = 114 + t * 78; }
-      else                 { r = 238; g = 232; b = 222; }
+      let [r, g, b] = getTerrainPalette(elev);
 
       r = clamp(Math.round(r * shade));
       g = clamp(Math.round(g * shade));
