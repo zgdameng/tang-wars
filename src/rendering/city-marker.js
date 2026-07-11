@@ -13,6 +13,14 @@ export function getCityMarkerMetrics() {
   };
 }
 
+export function getCityTowerMetrics() {
+  return {
+    width: 14,
+    height: 22,
+    battlementHeight: 5,
+  };
+}
+
 /**
  * 在地图上创建城池标记——用 HTML DOM 做标签（完美中文），
  * Phaser 圆点做交互（点击检测）。
@@ -293,6 +301,28 @@ function _drawCastle(gfx, cx, cy, factionColor, province) {
     case 'water-town':  drawWaterTown(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
     case 'pavilion':    drawPavilion(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH); break;
     default:            drawImperial(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fDark, px0, py0, pW, platH);
+  }
+
+  _drawGateTowers(gfx, st, x0, y0, W, H);
+}
+
+function _drawGateTowers(gfx, st, x0, y0, W, H) {
+  const metrics = getCityTowerMetrics();
+  const towerW = Math.min(metrics.width, Math.round(W * 0.18));
+  const towerH = Math.min(metrics.height, Math.round(H * 0.58));
+  const towerY = y0 + H - towerH;
+  const offsets = [x0 - Math.round(towerW * 0.25), x0 + W - Math.round(towerW * 0.75)];
+
+  for (const towerX of offsets) {
+    gfx.fillStyle(st.wallDark, 0.75);
+    gfx.fillRect(towerX + 2, towerY - 2, towerW, towerH);
+    gfx.fillStyle(st.wallLight, 1);
+    gfx.fillRect(towerX, towerY, towerW, towerH);
+    _drawStoneBlocks(gfx, towerX + 1, towerY + 4, towerW - 2, towerH - 7, st.wallDark, 5, 0.18);
+    gfx.fillStyle(st.roofBright, 1);
+    for (let i = 0; i < 3; i++) {
+      gfx.fillRect(towerX + 1 + i * Math.round(towerW / 3), towerY - metrics.battlementHeight, Math.max(2, Math.round(towerW / 3) - 1), metrics.battlementHeight);
+    }
   }
 }
 
