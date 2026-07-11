@@ -2,6 +2,16 @@ import { gridToPixel } from './map-bitmap.js';
 
 let containerEl = null;
 const markers = []; // { cityId, el, circle }
+const CITY_MARKER_SCALE = 1.65;
+
+export function getCityMarkerMetrics() {
+  return {
+    scale: CITY_MARKER_SCALE,
+    hitWidth: 108,
+    hitHeight: 82,
+    labelOffsetY: -52,
+  };
+}
 
 /**
  * 在地图上创建城池标记——用 HTML DOM 做标签（完美中文），
@@ -12,6 +22,7 @@ const markers = []; // { cityId, el, circle }
  * @param {object} factions
  */
 export function createCityMarkers(scene, cities, factions) {
+  const metrics = getCityMarkerMetrics();
   // 创建标签容器（绝对定位，盖在游戏画布上）
   if (!containerEl) {
     containerEl = document.createElement('div');
@@ -35,7 +46,7 @@ export function createCityMarkers(scene, cities, factions) {
     _drawCastle(gfx, x, y - 4, fc, city.province);
     gfx.setDepth(10);
     // 交互区用透明矩形覆盖城楼（放大以匹配新图标）
-    const hitZone = scene.add.rectangle(x, y - 10, 68, 50, 0x000000, 0);
+    const hitZone = scene.add.rectangle(x, y - 18, metrics.hitWidth, metrics.hitHeight, 0x000000, 0);
     hitZone.setInteractive({ useHandCursor: true });
     hitZone.setDepth(11);
     hitZone.cityId = city.id;
@@ -57,17 +68,18 @@ export function createCityMarkers(scene, cities, factions) {
     el.textContent = city.name;
     el.style.cssText = `
       position: absolute;
-      font-size: 14px; font-weight: bold; color: #3D2B1F;
+      font-size: 15px; font-weight: bold; color: #2B241B;
       font-family: 'KaiTi', 'STKaiti', 'Microsoft YaHei', sans-serif;
       text-shadow: 0 0 3px #F0E8D8, 0 0 3px #F0E8D8, 1px 1px 1px #F0E8D8;
       transform: translate(-50%, -50%);
       white-space: nowrap;
-      background: rgba(247,242,232,0.82);
+      background: rgba(239,229,202,0.90); border: 1px solid rgba(80,62,42,0.72);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.45), 0 2px 5px rgba(0,0,0,0.40);
       padding: 2px 6px; border-radius: 3px;
     `;
     containerEl.appendChild(el);
 
-    markers.push({ cityId: city.id, el, circle, worldX: x, worldY: y - 30 });
+    markers.push({ cityId: city.id, el, circle, worldX: x, worldY: y + metrics.labelOffsetY });
   }
 }
 
@@ -147,7 +159,7 @@ function _provinceGroup(province) {
 function _styleFor(group) {
   switch (group) {
     case 'imperial':  // 关中/河南 — 帝都：重檐庑殿顶，朱红宫墙
-      return {
+      return _scaleCityStyle({
         shape: 'double-eave',
         wall: 0xCC3333, wallLight: 0xDD5544, wallDark: 0x992222,
         roof: 0x2A1008, roofBright: 0x6A3020, roofMid: 0x4A2012,
@@ -156,9 +168,9 @@ function _styleFor(group) {
         gate: 'wide-arch', gateW: 15, gateH: 11,
         W: 54, H: 28, D: 8, platH: 4, platExt: 5,
         roofH1: 6, roofH2: 5, eave1: 8, eave2: 4,
-      };
+      });
     case 'frontier':  // 河北/河东 — 边塞：望楼烽燧，铁灰
-      return {
+      return _scaleCityStyle({
         shape: 'watchtower',
         wall: 0x556677, wallLight: 0x778899, wallDark: 0x334455,
         roof: 0x1A1A22, roofBright: 0x3A3A4A, roofMid: 0x282838,
@@ -168,9 +180,9 @@ function _styleFor(group) {
         W: 34, H: 30, D: 6, platH: 4, platExt: 4,
         roofH1: 3, roofH2: 0, eave1: 2, eave2: 0,
         towerW: 12, towerH: 10,
-      };
+      });
     case 'water':     // 淮南/江南/镇海 — 水乡：粉墙黛瓦，月门水桥
-      return {
+      return _scaleCityStyle({
         shape: 'water-town',
         wall: 0x8899AA, wallLight: 0xAABBCC, wallDark: 0x667788,
         roof: 0x0A0A1A, roofBright: 0x2A2A4A, roofMid: 0x181830,
@@ -180,9 +192,9 @@ function _styleFor(group) {
         gate: 'moon', gateW: 11, gateH: 11,
         W: 44, H: 22, D: 6, platH: 4, platExt: 4,
         roofH1: 7, roofH2: 0, eave1: 8, eave2: 0,
-      };
+      });
     case 'southern':  // 西川/荆南/岭南 — 蜀楚：楼阁飞檐，赭红暖调
-      return {
+      return _scaleCityStyle({
         shape: 'pavilion',
         wall: 0xCC6633, wallLight: 0xDD8855, wallDark: 0x994422,
         roof: 0x2A1808, roofBright: 0x6A3820, roofMid: 0x4A2812,
@@ -192,10 +204,21 @@ function _styleFor(group) {
         W: 44, H: 26, D: 7, platH: 4, platExt: 4,
         roofH1: 6, roofH2: 0, eave1: 6, eave2: 0,
         upperH: 10,
-      };
+      });
     default:
       return _styleFor('imperial');
   }
+}
+
+function _scaleCityStyle(style) {
+  const scaled = { ...style };
+  const fields = ['W', 'H', 'D', 'platH', 'platExt', 'roofH1', 'roofH2', 'eave1', 'eave2', 'gateW', 'gateH', 'towerW', 'towerH', 'upperH'];
+
+  for (const field of fields) {
+    if (Number.isFinite(scaled[field])) scaled[field] = Math.round(scaled[field] * CITY_MARKER_SCALE);
+  }
+
+  return scaled;
 }
 
 /**
@@ -359,7 +382,7 @@ function drawImperial(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fD
 
   // — 旗杆 —
   const flagTop = ridgeTop - 10;
-  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop);
+  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop, CITY_MARKER_SCALE);
 
   // — 金边（宫墙轮廓）—
   gfx.lineStyle(1.5, gold, 0.5);
@@ -433,7 +456,7 @@ function drawFrontier(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fD
 
   // — 旗杆（从望楼顶升起）—
   const flagTop = ty0 - 3 - 10;
-  _drawFlag(gfx, factionColor, cx, flagTop, ty0 - 3);
+  _drawFlag(gfx, factionColor, cx, flagTop, ty0 - 3, CITY_MARKER_SCALE);
 
   // — 铁灰边 —
   gfx.lineStyle(1.5, 0x888888, 0.6);
@@ -518,7 +541,7 @@ function drawWaterTown(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, f
 
   // — 旗杆 —
   const flagTop = y0 - roofH1 - 10;
-  _drawFlag(gfx, factionColor, cx, flagTop, y0 - roofH1);
+  _drawFlag(gfx, factionColor, cx, flagTop, y0 - roofH1, CITY_MARKER_SCALE);
 
   // — 淡金边 —
   gfx.lineStyle(1, gold, 0.45);
@@ -606,7 +629,7 @@ function drawPavilion(gfx, st, cx, cy, x0, y0, W, H, D, factionColor, fLight, fD
 
   // — 旗杆 —
   const flagTop = ridgeTop - 6 - 10;
-  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop - 6);
+  _drawFlag(gfx, factionColor, cx, flagTop, ridgeTop - 6, CITY_MARKER_SCALE);
 
   // — 金边 —
   gfx.lineStyle(1.5, gold, 0.55);
@@ -685,17 +708,17 @@ function _drawStoneBlocks(gfx, rx, ry, rw, rh, color, spacing, alpha) {
 // ============================================================
 //  共享：旗杆 + 三角旗
 // ============================================================
-function _drawFlag(gfx, factionColor, px, top, bottom) {
+function _drawFlag(gfx, factionColor, px, top, bottom, scale = 1) {
   // 旗杆
   gfx.fillStyle(0x3D2B1F, 1);
-  gfx.fillRect(px - 1, top, 2, bottom - top + 2);
+  gfx.fillRect(px - scale, top, scale * 2, bottom - top + scale * 2);
   // 杆顶小球
   gfx.fillStyle(0xD4C5A0, 0.8);
-  gfx.fillCircle(px, top, 2);
+  gfx.fillCircle(px, top, scale * 2);
   // 三角旗
   gfx.fillStyle(factionColor, 1);
-  gfx.fillTriangle(px + 1, top + 2, px + 1, top + 7, px + 7, top + 4);
+  gfx.fillTriangle(px + scale, top + scale * 2, px + scale, top + scale * 7, px + scale * 7, top + scale * 4);
   // 旗尾飘带
   gfx.fillStyle(factionColor, 0.6);
-  gfx.fillTriangle(px - 2, top + 7, px + 1, top + 7, px + 1, top + 12);
+  gfx.fillTriangle(px - scale * 2, top + scale * 7, px + scale, top + scale * 7, px + scale, top + scale * 12);
 }
