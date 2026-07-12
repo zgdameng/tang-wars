@@ -9,6 +9,15 @@ import { UNIT_TYPES } from '../logic/army.js';
 import { setCityGovernor } from '../logic/city.js';
 import { spendGold } from '../logic/faction.js';
 
+export function getCityPanelTheme() {
+  return {
+    ink: '#2B241B',
+    paper: '#E9DEC6',
+    vermilion: '#9E3025',
+    bronze: '#7A5A33',
+  };
+}
+
 // ============================================================
 //  toast 提示
 // ============================================================
@@ -46,15 +55,16 @@ const PAPER_TEXTURE = `
 
 function getPanel() {
   if (panelEl) return panelEl;
+  const theme = getCityPanelTheme();
   panelEl = document.createElement('div');
   panelEl.id = 'city-panel';
   panelEl.style.cssText = `
     display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
     width:90vw; max-width:440px; max-height:88vh; overflow-y:auto;
-    background:rgba(247,242,232,0.98); border:2px solid #D4C5A0;
-    border-radius:10px; padding:0; color:#3D2B1F;
+    background:${theme.paper}; border:2px solid ${theme.bronze};
+    border-radius:6px; padding:0; color:${theme.ink};
     font-family:'Microsoft YaHei',sans-serif; z-index:1000; user-select:none;
-    box-shadow: 0 4px 24px rgba(61,43,31,0.25), inset 0 0 0 1px rgba(212,197,160,0.3);
+    box-shadow: 0 8px 28px rgba(31,25,18,0.38), inset 0 0 0 2px rgba(255,248,225,0.42);
   `;
   document.body.appendChild(panelEl);
 
@@ -91,21 +101,22 @@ export function hideCityPanel() {
 
 function render(city, faction, governor) {
   const panel = getPanel();
+  const theme = getCityPanelTheme();
   const ownerName = faction ? faction.name : '无主';
   const govName = governor ? governor.name : '无';
 
   panel.innerHTML = `
     <!-- 头部：城名 + 归属印章 -->
-    <div style="padding:18px 20px 0">
+    <div style="padding:18px 20px 12px;border-bottom:2px solid ${theme.bronze};background:linear-gradient(180deg,rgba(122,90,51,0.20),rgba(233,222,198,0.72));position:relative">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
         <div>
-          <div style="font-size:26px;color:#3D2B1F;font-weight:bold;font-family:'KaiTi','STKaiti',serif;letter-spacing:4px">${city.name}</div>
+          <div style="font-size:26px;color:${theme.ink};font-weight:bold;font-family:'KaiTi','STKaiti',serif;letter-spacing:4px">${city.name}</div>
           ${city.desc ? `<div style="font-size:12px;color:#6B5B4F;margin-top:2px;font-style:italic">「${city.desc}」</div>` : ''}
         </div>
         <div style="text-align:center;min-width:52px">
           <div style="
-            display:inline-block; border:1.5px solid #C43A30; border-radius:3px;
-            padding:2px 8px; color:#C43A30; font-size:10px;
+            display:inline-block; border:1.5px solid ${theme.vermilion}; border-radius:2px;
+            padding:3px 8px; color:${theme.vermilion}; font-size:10px;
             font-family:'KaiTi','STKaiti',serif; letter-spacing:1px;
             transform:rotate(-3deg);
           ">${ownerName}</div>
@@ -113,8 +124,7 @@ function render(city, faction, governor) {
         </div>
       </div>
       ${/* 装饰分割线 */''}
-      <div style="height:2px;background:linear-gradient(90deg,#D4C5A0,#B8960C,#D4C5A0);margin:8px 0 0"></div>
-      <div style="height:1px;background:#D4C5A0;margin:1px 0 0;opacity:0.5"></div>
+      <div style="height:2px;background:linear-gradient(90deg,transparent,${theme.bronze},transparent);margin:8px 0 0"></div>
     </div>
 
     ${/* ── 标签页 —— 唐风书签式 ── */''}
