@@ -43,6 +43,15 @@ export function getFactionTintAlpha(weight) {
   return Math.min(0.16, Number((Math.max(0, weight) * 0.32).toFixed(2)));
 }
 
+export function getPeakVisual(baseSize) {
+  return {
+    size: baseSize * 1.45,
+    shadowOffsetX: Math.round(baseSize * 0.7),
+    shadowOffsetY: Math.round(baseSize * 0.5),
+    shadowAlpha: 0.42,
+  };
+}
+
 // ============================================================
 export function generateMapBitmap(state) {
   const hm = buildHeightmap();
@@ -366,7 +375,7 @@ function paintFishboneRidge(ctx, mainPts, branchCount) {
     const oy = Math.cos(i * 2.9) * 14 + Math.sin(i * 2.1) * 8;
     const px = pt.x + ox, py = pt.y + oy;
     const sz = 7 + (i % 3) * 2.5 + Math.abs(Math.sin(i * 1.2)) * 5;
-    drawPeak(ctx, px, py, sz);
+    drawPeak(ctx, px, py, getPeakVisual(sz));
     const angle = getPathAngle(mainPts, t);
     const perp = angle + Math.PI / 2;
     for (let b = 0; b < branchCount; b++) {
@@ -374,21 +383,25 @@ function paintFishboneRidge(ctx, mainPts, branchCount) {
       const bd = 6 + (b % 3) * 6;
       const bx = px + Math.cos(perp) * bd * dir, by = py + Math.sin(perp) * bd * dir;
       const bsz = sz * 0.45 + (b % 2) * 1.5;
-      drawPeak(ctx, bx, by, bsz);
+      drawPeak(ctx, bx, by, getPeakVisual(bsz));
       if (b < branchCount - 2) {
         const bx2 = bx + Math.cos(perp) * 8 * dir, by2 = by + Math.sin(perp) * 8 * dir;
-        drawPeak(ctx, bx2, by2, bsz * 0.52);
+        drawPeak(ctx, bx2, by2, getPeakVisual(bsz * 0.52));
       }
     }
   }
 }
 
-function drawPeak(ctx, px, py, sz) {
-  ctx.fillStyle = 'rgba(100,78,48,0.5)';
-  ctx.beginPath(); ctx.moveTo(px, py - sz); ctx.lineTo(px + sz * 0.55, py + sz * 0.32); ctx.lineTo(px - sz * 0.55, py + sz * 0.32);
+function drawPeak(ctx, px, py, visual) {
+  const { size, shadowOffsetX, shadowOffsetY, shadowAlpha } = visual;
+  ctx.fillStyle = `rgba(48,42,35,${shadowAlpha})`;
+  ctx.beginPath(); ctx.moveTo(px + shadowOffsetX, py - size + shadowOffsetY); ctx.lineTo(px + size * 0.72 + shadowOffsetX, py + size * 0.4 + shadowOffsetY); ctx.lineTo(px - size * 0.45 + shadowOffsetX, py + size * 0.4 + shadowOffsetY);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(200,168,115,0.48)';
-  ctx.beginPath(); ctx.moveTo(px, py - sz); ctx.lineTo(px - sz * 0.18, py - sz * 0.08); ctx.lineTo(px - sz * 0.55, py + sz * 0.32);
+  ctx.fillStyle = 'rgba(93,77,56,0.72)';
+  ctx.beginPath(); ctx.moveTo(px, py - size); ctx.lineTo(px + size * 0.62, py + size * 0.36); ctx.lineTo(px - size * 0.62, py + size * 0.36);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(191,169,126,0.62)';
+  ctx.beginPath(); ctx.moveTo(px, py - size); ctx.lineTo(px - size * 0.16, py - size * 0.08); ctx.lineTo(px - size * 0.62, py + size * 0.36);
   ctx.closePath(); ctx.fill();
 }
 
