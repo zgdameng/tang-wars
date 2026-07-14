@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createBattleState, checkBattleEnd } from '../logic/battle/battle-state.js';
 import { getDamage } from '../logic/battle/battle-units.js';
+import { getBattlePalette, getFormationOffsets } from '../rendering/battle-visuals.js';
 
 const UNIT_ICONS = {
   infantry: '🛡️', cavalry: '🐎', archer: '🏹'
@@ -47,8 +48,12 @@ export class BattleScene extends Phaser.Scene {
 
     // 背景——地形示意
     const terrain = enc.terrain || 'plains';
-    const bgColor = terrain === 'river' ? 0x1a2a3a : terrain === 'hills' ? 0x2a2a1a : 0x2a2a1a;
-    this.add.rectangle(W / 2, H / 2, W, H, bgColor, 0.3);
+    const palette = getBattlePalette(terrain);
+    this.cameras.main.setBackgroundColor(palette.sky);
+    this.add.rectangle(W / 2, H / 2, W, H, palette.ground, 1);
+    this.add.triangle(W * 0.22, H * 0.42, 0, 180, 210, 0, 430, 180, palette.ridge, 0.72);
+    this.add.triangle(W * 0.78, H * 0.42, 0, 180, 210, 0, 430, 180, palette.ridge, 0.72).setFlipX(true);
+    this.add.rectangle(W / 2, H * 0.72, W, 110, palette.dust, 0.22);
 
     // 中间分隔线
     this.add.line(W / 2, 100, 0, 0, 0, H - 200, 0x444422, 0.4);
@@ -119,6 +124,16 @@ export class BattleScene extends Phaser.Scene {
 
   createBattleCard(unit, x, y, color, side) {
     const card = this.add.container(x, y);
+    const pole = this.add.rectangle(-28, -16, 3, 54, 0x38291E);
+    const banner = this.add.triangle(-15, -36, 0, 0, 0, 20, 28, 10, color);
+    card.add([pole, banner]);
+
+    for (const offset of getFormationOffsets()) {
+      const body = this.add.rectangle(offset.x, offset.y, 7, 13, 0x2A241D);
+      const head = this.add.circle(offset.x, offset.y - 9, 3, 0xC9AD7A);
+      const shield = this.add.circle(offset.x + (side === 'attacker' ? 4 : -4), offset.y + 2, 4, color);
+      card.add([body, head, shield]);
+    }
 
     // 底色卡片
     const bg = this.add.rectangle(0, 0, 100, 120, 0x111122, 0.9)

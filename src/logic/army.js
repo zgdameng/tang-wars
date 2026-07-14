@@ -11,15 +11,15 @@
 export const UNIT_TYPES = {
   infantry: {
     name: '步兵', attack: 10, defense: 12, speed: 3,
-    cost: 100, counters: 'cavalry'
+    cost: 10, counters: 'cavalry'
   },
   cavalry: {
     name: '骑兵', attack: 15, defense: 8, speed: 6,
-    cost: 200, counters: 'archer'
+    cost: 20, counters: 'archer'
   },
   archer: {
     name: '弓兵', attack: 12, defense: 6, speed: 4,
-    cost: 150, counters: 'infantry'
+    cost: 15, counters: 'infantry'
   }
 };
 

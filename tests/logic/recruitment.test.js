@@ -41,7 +41,7 @@ describe('recruitUnit', () => {
     const army = recruitUnit(state, 'c1', 'infantry', 10);
 
     expect(army).not.toBeNull();
-    expect(state.factions['f1'].gold).toBe(beforeGold - 10 * 100); // 5000 - 1000 = 4000
+    expect(state.factions['f1'].gold).toBe(beforeGold - 10 * 10);
   });
 
   it('should deduct population for recruitment', () => {
