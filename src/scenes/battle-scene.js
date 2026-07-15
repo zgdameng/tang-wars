@@ -362,9 +362,11 @@ export class BattleScene extends Phaser.Scene {
         }))
       };
 
-      this.scene.get('MapScene').events.emit('battle-ended', result);
+      const mapScene = this.scene.get('MapScene');
+      mapScene.events.emit('battle-ended', result);
       this.scene.stop('BattleScene');
       this.scene.wake('MapScene');
+      mapScene.restoreMapUi();
     });
   }
 }

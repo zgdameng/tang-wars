@@ -143,6 +143,14 @@ export function destroyCityMarkers() {
   markers.length = 0;
 }
 
+export function setCityMarkersVisible(visible) {
+  if (containerEl) containerEl.style.display = visible ? '' : 'none';
+  for (const marker of markers) {
+    marker.circle?.setVisible(visible);
+    marker.circle?._gfx?.setVisible(visible);
+  }
+}
+
 /** 把 Phaser 颜色整数转成 CSS 十六进制 */
 function colorToHex(color) {
   return '#' + color.toString(16).padStart(6, '0');

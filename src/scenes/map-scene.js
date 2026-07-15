@@ -2,17 +2,17 @@ import Phaser from 'phaser';
 import { createGameState } from '../logic/game-state.js';
 import { loadGameData } from '../logic/data-loader.js';
 import { generateMapBitmap, gridToPixel, MAP_W, MAP_H, WORLD_OX, WORLD_OY } from '../rendering/map-bitmap.js';
-import { createCityMarkers, updateCityLabelPositions, destroyCityMarkers } from '../rendering/city-marker.js';
-import { createArmyMarkers, updateArmyPositions, refreshArmyMarkers, destroyArmyMarkers } from '../rendering/army-marker.js';
+import { createCityMarkers, updateCityLabelPositions, destroyCityMarkers, setCityMarkersVisible } from '../rendering/city-marker.js';
+import { createArmyMarkers, updateArmyPositions, refreshArmyMarkers, destroyArmyMarkers, setArmyMarkersVisible } from '../rendering/army-marker.js';
 import { showCityPanel, hideCityPanel } from './city-panel.js';
 import { executeTurn } from '../logic/turn.js';
-import { createTurnPanel, setTurnDisplay, removeTurnPanel } from '../ui/turn-panel.js';
+import { createTurnPanel, setTurnDisplay, removeTurnPanel, setTurnPanelVisible } from '../ui/turn-panel.js';
 import { applyBattleResult } from '../logic/battle/battle-resolution.js';
 import { showDiplomacyPanel, hideDiplomacyPanel } from '../ui/diplomacy-panel.js';
 import { showSavePanel, hideSavePanel } from '../ui/save-panel.js';
 import { showArmyPanel, hideArmyPanel, isArmyPanelOpen } from '../ui/army-panel.js';
 import { showEspionagePanel, hideEspionagePanel } from '../ui/espionage-panel.js';
-import { showTurnReport } from '../ui/turn-report.js';
+import { showTurnReport, hideTurnReport } from '../ui/turn-report.js';
 import { saveGame } from '../logic/save-load.js';
 import { playClick, playDrum, startBgMusic, stopBgMusic } from '../audio/sound-manager.js';
 
@@ -121,8 +121,7 @@ export class MapScene extends Phaser.Scene {
       if (result.encounters && result.encounters.length > 0) {
         this.pendingEncounter = result.encounters[0];
         console.log('[DEBUG] 启动战斗场景, encounter=', JSON.stringify({type: this.pendingEncounter.type, atkId: this.pendingEncounter.attacker?.id, defId: this.pendingEncounter.defender?.id}));
-        this.scene.sleep('MapScene');
-        this.scene.launch('BattleScene', { encounter: this.pendingEncounter });
+        this.enterBattle(this.pendingEncounter);
       }
     });
 
@@ -165,6 +164,42 @@ export class MapScene extends Phaser.Scene {
   }
 
   // 相机：限制在地图范围内，支持拖拽平移 + 滚轮缩放（聚焦鼠标位置）
+  enterBattle(encounter) {
+    hideCityPanel();
+    hideArmyPanel();
+    hideDiplomacyPanel();
+    hideEspionagePanel();
+    hideSavePanel();
+    hideTurnReport();
+    setCityMarkersVisible(false);
+    setArmyMarkersVisible(false);
+    setTurnPanelVisible(false);
+    this.removeDomButton('diplomacy-btn');
+    this.removeDomButton('spy-btn');
+    this.removeDomButton('save-btn');
+    this.scene.sleep('MapScene');
+    this.scene.launch('BattleScene', { encounter });
+  }
+
+  restoreMapUi() {
+    setCityMarkersVisible(true);
+    setArmyMarkersVisible(true);
+    setTurnPanelVisible(true);
+    this.createMapActionButtons();
+  }
+
+  createMapActionButtons() {
+    this.createDomButton('diplomacy-btn', '外交', 200, () => {
+      playClick(); showDiplomacyPanel(this.gameState);
+    });
+    this.createDomButton('spy-btn', '间谍', 280, () => {
+      playClick(); showEspionagePanel(this.gameState);
+    });
+    this.createDomButton('save-btn', '存档', 360, () => {
+      playClick(); showSavePanel(this.gameState);
+    });
+  }
+
   setupCamera() {
     const cam = this.cameras.main;
     cam.setBackgroundColor('#F0E8D8');

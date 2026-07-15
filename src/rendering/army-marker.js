@@ -152,3 +152,12 @@ export function destroyArmyMarkers() {
     containerEl = null;
   }
 }
+
+export function setArmyMarkersVisible(visible) {
+  if (containerEl) containerEl.style.display = visible ? '' : 'none';
+  for (const marker of markers) {
+    marker.sprite?.setVisible(visible);
+    marker.outline?.setVisible(visible);
+    marker.hitZone?.setVisible(visible);
+  }
+}

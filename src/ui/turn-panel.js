@@ -47,6 +47,10 @@ export function setTurnDisplay(turn) {
   }
 }
 
+export function setTurnPanelVisible(visible) {
+  if (panelEl) panelEl.style.display = visible ? 'flex' : 'none';
+}
+
 export function removeTurnPanel() {
   if (panelEl && panelEl.parentNode) {
     panelEl.parentNode.removeChild(panelEl);
