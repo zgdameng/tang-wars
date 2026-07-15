@@ -45,6 +45,7 @@ let _cityId = null;
 let _activeTab = 'info';
 
 let overlayEl = null;
+let _onArmyChanged = null;
 
 // 纸纹肌理 —— 用多层 CSS 渐变模拟宣纸纤维感
 const PAPER_TEXTURE = `
@@ -81,10 +82,11 @@ function getPanel() {
 //  公开 API
 // ============================================================
 
-export function showCityPanel(city, faction, governor, state) {
+export function showCityPanel(city, faction, governor, state, onArmyChanged) {
   _state = state;
   _cityId = city.id;
   _activeTab = 'info';
+  _onArmyChanged = onArmyChanged || null;
   render(city, faction, governor);
   getPanel().style.display = 'block';
   if (overlayEl) overlayEl.style.display = 'block';
@@ -304,6 +306,7 @@ function bindRecruitButtons(city, faction) {
       const unitType = btn.dataset.type;
       const result = recruitUnit(_state, city.id, unitType, 100);
       if (result) {
+        if (_onArmyChanged) _onArmyChanged();
         showToast(`招募成功：${UNIT_TYPES[unitType]?.name || unitType} ×100`);
         const updatedCity = _state.cities[city.id];
         const updatedFaction = _state.factions[city.owner];

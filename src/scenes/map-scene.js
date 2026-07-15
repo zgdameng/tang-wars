@@ -55,7 +55,9 @@ export class MapScene extends Phaser.Scene {
       if (!city) return;
       const faction = city.owner ? this.gameState.factions[city.owner] : null;
       const governor = city.governor ? this.gameState.generals[city.governor] : null;
-      showCityPanel(city, faction, governor, this.gameState);
+      showCityPanel(city, faction, governor, this.gameState, () => {
+        refreshArmyMarkers(this, this.gameState.armies, this.gameState.factions);
+      });
     });
 
     // 部队点击 → 行军操作面板
