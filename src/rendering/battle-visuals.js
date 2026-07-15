@@ -31,3 +31,19 @@ export function getFormationOffsets() {
     { x: 9, y: 2 }, { x: 18, y: 8 },
   ];
 }
+
+export function getRidgeTrianglePoints(side) {
+  if (side === 'right') {
+    return [
+      { x: 430, y: 180 },
+      { x: 220, y: 0 },
+      { x: 0, y: 180 },
+    ];
+  }
+
+  return [
+    { x: 0, y: 180 },
+    { x: 210, y: 0 },
+    { x: 430, y: 180 },
+  ];
+}

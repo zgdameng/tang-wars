@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createBattleState, checkBattleEnd } from '../logic/battle/battle-state.js';
 import { getDamage } from '../logic/battle/battle-units.js';
-import { getBattlePalette, getFormationOffsets } from '../rendering/battle-visuals.js';
+import { getBattlePalette, getFormationOffsets, getRidgeTrianglePoints } from '../rendering/battle-visuals.js';
 
 const UNIT_ICONS = {
   infantry: '🛡️', cavalry: '🐎', archer: '🏹'
@@ -51,8 +51,10 @@ export class BattleScene extends Phaser.Scene {
     const palette = getBattlePalette(terrain);
     this.cameras.main.setBackgroundColor(palette.sky);
     this.add.rectangle(W / 2, H / 2, W, H, palette.ground, 1);
-    this.add.triangle(W * 0.22, H * 0.42, 0, 180, 210, 0, 430, 180, palette.ridge, 0.72);
-    this.add.triangle(W * 0.78, H * 0.42, 0, 180, 210, 0, 430, 180, palette.ridge, 0.72).setFlipX(true);
+    const leftRidge = getRidgeTrianglePoints('left');
+    const rightRidge = getRidgeTrianglePoints('right');
+    this.add.triangle(W * 0.22, H * 0.42, ...leftRidge.flatMap(point => [point.x, point.y]), palette.ridge, 0.72);
+    this.add.triangle(W * 0.78, H * 0.42, ...rightRidge.flatMap(point => [point.x, point.y]), palette.ridge, 0.72);
     this.add.rectangle(W / 2, H * 0.72, W, 110, palette.dust, 0.22);
 
     // 中间分隔线
