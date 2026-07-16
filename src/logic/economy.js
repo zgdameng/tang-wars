@@ -8,6 +8,13 @@ export function getDevelopmentUpgradeCost() {
   return DEVELOPMENT_COST;
 }
 
+export function calculateGovernorEffects(governor) {
+  return {
+    income: Math.floor((governor?.politics || 0) / 20),
+    stability: Math.floor((governor?.charisma || 0) / 20),
+  };
+}
+
 export function upgradeCityDevelopment(state, cityId, type) {
   const city = state.cities[cityId];
   if (!city || !DEVELOPMENT_TYPES.has(type)) return null;
@@ -36,6 +43,7 @@ export function calculateTurnIncome(state, factionId) {
 
   for (const city of cities) {
     gold += Math.floor(city.population / 1000 * city.commerce * CONFIG.BASE_TAX_RATE);
+    gold += calculateGovernorEffects(state.generals[city.governor]).income;
   }
 
   // 部队维护费（等 army 系统做好后补充计数）
@@ -80,6 +88,7 @@ export function applyTurnEconomy(state, factionId) {
   const cities = getFactionCities(state, factionId);
   let totalPopGrowth = 0;
   for (const city of cities) {
+    city.stability = Math.min(100, city.stability + calculateGovernorEffects(state.generals[city.governor]).stability);
     const growth = calculatePopulationGrowth(city);
     city.population += growth;
     totalPopGrowth += growth;

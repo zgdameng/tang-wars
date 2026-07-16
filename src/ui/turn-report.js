@@ -25,6 +25,13 @@ export function showTurnReport(state) {
   const cities = faction ? faction.cities.map(id => state.cities[id]).filter(Boolean) : [];
   const totalPop = cities.reduce((s, c) => s + c.population, 0);
   const gold = faction ? faction.gold : 0;
+  const governorNotes = cities.map(city => {
+    const governor = state.generals[city.governor];
+    if (!governor) return '';
+    const income = Math.floor((governor.politics || 0) / 20);
+    const stability = Math.floor((governor.charisma || 0) / 20);
+    return `<div style="font-size:12px;color:#6B5B4F;margin:2px 0">${city.name}：${governor.name}理政，收入+${income}，民心+${stability}</div>`;
+  }).filter(Boolean).join('');
 
   let aiReport = '';
   const aiFactions = Object.values(state.factions).filter(f => !f.isHuman);
@@ -53,6 +60,7 @@ export function showTurnReport(state) {
       <div>⚔️ 军队：<b>${Object.values(state.armies).filter(a => a.factionId === state.playerFactionId).length}</b> 队</div>
     </div>
     ${victoryMsg}
+    ${governorNotes ? `<div style="border-top:1px solid #D4C5A0;padding-top:8px;margin-top:8px"><div style="font-size:14px;color:#3D2B1F;margin-bottom:4px">太守施政</div>${governorNotes}</div>` : ''}
     <div style="border-top:1px solid #D4C5A0;padding-top:8px;margin-top:8px">
       <div style="font-size:14px;color:#3D2B1F;margin-bottom:4px">🤖 AI 势力动态</div>
       ${aiReport}

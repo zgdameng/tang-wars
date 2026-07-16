@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createGameState, addCity, addFaction } from '../../src/logic/game-state.js';
-import { calculateTurnIncome, calculatePopulationGrowth, upgradeCityDevelopment } from '../../src/logic/economy.js';
+import { calculateTurnIncome, calculatePopulationGrowth, upgradeCityDevelopment, calculateGovernorEffects } from '../../src/logic/economy.js';
 
 describe('calculateTurnIncome', () => {
   it('should sum income from all faction cities', () => {
@@ -56,5 +56,11 @@ describe('upgradeCityDevelopment', () => {
 
     expect(upgradeCityDevelopment(state, 'c1', 'agriculture')).toEqual({ cost: 400, level: 4 });
     expect(state.factions.f1.gold).toBe(600);
+  });
+});
+
+describe('calculateGovernorEffects', () => {
+  it('converts politics and charisma into city bonuses', () => {
+    expect(calculateGovernorEffects({ politics: 80, charisma: 60 })).toEqual({ income: 4, stability: 3 });
   });
 });
