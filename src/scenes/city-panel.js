@@ -7,7 +7,7 @@
 import { recruitUnit } from '../logic/recruitment.js';
 import { UNIT_TYPES } from '../logic/army.js';
 import { setCityGovernor } from '../logic/city.js';
-import { spendGold } from '../logic/faction.js';
+import { getDevelopmentUpgradeCost, upgradeCityDevelopment } from '../logic/economy.js';
 
 export function getCityPanelTheme() {
   return {
@@ -323,8 +323,6 @@ function bindRecruitButtons(city, faction) {
 //  标签 3：建设
 // ============================================================
 
-const BUILD_COSTS = { agriculture: 600, commerce: 600, defense: 400 };
-
 function renderBuild(city, faction) {
   if (!faction) return emptyState('此城无主，无法建设');
 
@@ -342,7 +340,7 @@ function renderBuild(city, faction) {
   ];
 
   for (const item of items) {
-    const cost = BUILD_COSTS[item.key] * (item.cur + 1);
+    const cost = getDevelopmentUpgradeCost();
     const canAfford = gold >= cost && item.cur < 10;
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;
@@ -379,12 +377,10 @@ function bindBuildButtons(city, faction) {
   document.querySelectorAll('.btn-build').forEach(btn => {
     btn.onclick = () => {
       const key = btn.dataset.key;
-      const cost = BUILD_COSTS[key] * (city[key] + 1);
       if (city[key] >= 10) return;
 
-      const spent = spendGold(faction, cost);
-      if (spent) {
-        city[key] += 1;
+      const result = upgradeCityDevelopment(_state, city.id, key);
+      if (result) {
         showToast(`${key === 'agriculture' ? '农业' : key === 'commerce' ? '商业' : '城防'} 升级至 ${city[key]} 级`);
         const updatedCity = _state.cities[city.id];
         const updatedFaction = _state.factions[city.owner];

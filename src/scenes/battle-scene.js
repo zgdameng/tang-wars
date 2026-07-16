@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createBattleState, checkBattleEnd } from '../logic/battle/battle-state.js';
 import { getDamage } from '../logic/battle/battle-units.js';
-import { getBattlePalette, getFormationOffsets, getRidgeTrianglePoints, getBattleFormationOffsets, getBattleDustOffsets } from '../rendering/battle-visuals.js';
+import { getBattlePalette, getRidgeTrianglePoints, getBattleFormationOffsets, getBattleDustOffsets } from '../rendering/battle-visuals.js';
 
 const UNIT_ICONS = {
   infantry: '🛡️', cavalry: '🐎', archer: '🏹'
@@ -74,13 +74,13 @@ export class BattleScene extends Phaser.Scene {
     const defUnits = this.battle.defender.units.filter(u => u.count > 0);
 
     atkUnits.forEach((u, i) => {
-      const x = 150 + i * 120;
+      const x = 76 + i * 78;
       const y = 400 - (atkUnits.length - 1) * 40 + i * 80;
       this.createBattleCard(u, x, y, atkColor, 'attacker');
     });
 
     defUnits.forEach((u, i) => {
-      const x = W - 150 - i * 120;
+      const x = W - 76 - i * 78;
       const y = 400 - (defUnits.length - 1) * 40 + i * 80;
       this.createBattleCard(u, x, y, defColor, 'defender');
     });
@@ -125,52 +125,41 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createBattleCard(unit, x, y, color, side) {
-    const formation = this.createBattleFormation(x, y, color, side);
+    const formationX = side === 'attacker' ? x + 170 : x - 170;
+    const formation = this.createBattleFormation(formationX, y, color, side);
     const card = this.add.container(x, y);
-    const pole = this.add.rectangle(-28, -16, 3, 54, 0x38291E);
-    const banner = this.add.triangle(-15, -36, 0, 0, 0, 20, 28, 10, color);
-    card.add([pole, banner]);
-
-    for (const offset of getFormationOffsets()) {
-      const body = this.add.rectangle(offset.x, offset.y, 7, 13, 0x2A241D);
-      const head = this.add.circle(offset.x, offset.y - 9, 3, 0xC9AD7A);
-      const shield = this.add.circle(offset.x + (side === 'attacker' ? 4 : -4), offset.y + 2, 4, color);
-      card.add([body, head, shield]);
-    }
-
-    // 底色卡片
-    const bg = this.add.rectangle(0, 0, 100, 120, 0x111122, 0.9)
+    const bg = this.add.rectangle(0, 0, 62, 86, 0x111122, 0.92)
       .setStrokeStyle(2, color);
     card.add(bg);
 
     // 兵种大图标
-    const icon = this.add.text(0, -15, UNIT_ICONS[unit.type] || '⚔️', {
-      fontSize: '32px'
+    const icon = this.add.text(0, -24, UNIT_ICONS[unit.type] || '⚔️', {
+      fontSize: '24px'
     }).setOrigin(0.5);
     card.add(icon);
 
     // 兵种名
-    const name = this.add.text(0, 18, UNIT_NAMES[unit.type] || unit.type, {
-      fontSize: '13px', color: '#ccaa44', fontFamily: '"Microsoft YaHei",sans-serif'
+    const name = this.add.text(0, 0, UNIT_NAMES[unit.type] || unit.type, {
+      fontSize: '11px', color: '#ccaa44', fontFamily: '"Microsoft YaHei",sans-serif'
     }).setOrigin(0.5);
     card.add(name);
 
     // 兵力数字
-    const countText = this.add.text(0, 36, `${unit.count}`, {
-      fontSize: '16px', color: '#fff', fontFamily: '"Microsoft YaHei",sans-serif'
+    const countText = this.add.text(0, 17, `${unit.count}`, {
+      fontSize: '15px', color: '#fff', fontFamily: '"Microsoft YaHei",sans-serif'
     }).setOrigin(0.5);
     card.add(countText);
 
     // 血条背景
-    const hpBg = this.add.rectangle(0, 52, 80, 6, 0x333333);
+    const hpBg = this.add.rectangle(0, 32, 48, 5, 0x333333);
     card.add(hpBg);
     // 血条
-    const hpBar = this.add.rectangle(-40, 52, 80, 6, 0x00cc00).setOrigin(0, 0.5);
+    const hpBar = this.add.rectangle(-24, 32, 48, 5, 0x00cc00).setOrigin(0, 0.5);
     card.add(hpBar);
     // 士气条背景
-    const morBg = this.add.rectangle(0, 62, 80, 4, 0x333333);
+    const morBg = this.add.rectangle(0, 41, 48, 4, 0x333333);
     card.add(morBg);
-    const morBar = this.add.rectangle(-40, 62, 80, 4, 0x4488cc).setOrigin(0, 0.5);
+    const morBar = this.add.rectangle(-24, 41, 48, 4, 0x4488cc).setOrigin(0, 0.5);
     card.add(morBar);
 
     card.setDepth(10);

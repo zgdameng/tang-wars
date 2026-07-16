@@ -1,6 +1,25 @@
 import { CONFIG } from '../config.js';
 import { getFactionCities } from './game-state.js';
 
+const DEVELOPMENT_COST = 400;
+const DEVELOPMENT_TYPES = new Set(['agriculture', 'commerce', 'defense']);
+
+export function getDevelopmentUpgradeCost() {
+  return DEVELOPMENT_COST;
+}
+
+export function upgradeCityDevelopment(state, cityId, type) {
+  const city = state.cities[cityId];
+  if (!city || !DEVELOPMENT_TYPES.has(type)) return null;
+
+  const faction = state.factions[city.owner];
+  if (!faction || faction.gold < DEVELOPMENT_COST) return null;
+
+  faction.gold -= DEVELOPMENT_COST;
+  city[type] += 1;
+  return { cost: DEVELOPMENT_COST, level: city[type] };
+}
+
 /**
  * 计算一个势力本回合的金币收入。
  *

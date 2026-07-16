@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createGameState, addCity, addFaction } from '../../src/logic/game-state.js';
-import { calculateTurnIncome, calculatePopulationGrowth } from '../../src/logic/economy.js';
+import { calculateTurnIncome, calculatePopulationGrowth, upgradeCityDevelopment } from '../../src/logic/economy.js';
 
 describe('calculateTurnIncome', () => {
   it('should sum income from all faction cities', () => {
@@ -45,5 +45,16 @@ describe('calculatePopulationGrowth', () => {
   it('should return 0 when stability is 0', () => {
     const city = { population: 10000, agriculture: 5, stability: 0 };
     expect(calculatePopulationGrowth(city)).toBe(0);
+  });
+});
+
+describe('upgradeCityDevelopment', () => {
+  it('spends faction gold and raises the selected city development', () => {
+    const state = createGameState();
+    addFaction(state, { id: 'f1', name: '测试', color: 0xff0000, gold: 1000 });
+    addCity(state, { id: 'c1', name: '大城', x: 0, y: 0, owner: 'f1', agriculture: 3 });
+
+    expect(upgradeCityDevelopment(state, 'c1', 'agriculture')).toEqual({ cost: 400, level: 4 });
+    expect(state.factions.f1.gold).toBe(600);
   });
 });
