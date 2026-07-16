@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createBattleState, checkBattleEnd } from '../logic/battle/battle-state.js';
 import { getDamage } from '../logic/battle/battle-units.js';
-import { getBattlePalette, getFormationOffsets, getRidgeTrianglePoints } from '../rendering/battle-visuals.js';
+import { getBattlePalette, getFormationOffsets, getRidgeTrianglePoints, getBattleFormationOffsets, getBattleDustOffsets } from '../rendering/battle-visuals.js';
 
 const UNIT_ICONS = {
   infantry: '🛡️', cavalry: '🐎', archer: '🏹'
@@ -125,6 +125,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createBattleCard(unit, x, y, color, side) {
+    const formation = this.createBattleFormation(x, y, color, side);
     const card = this.add.container(x, y);
     const pole = this.add.rectangle(-28, -16, 3, 54, 0x38291E);
     const banner = this.add.triangle(-15, -36, 0, 0, 0, 20, 28, 10, color);
@@ -173,7 +174,33 @@ export class BattleScene extends Phaser.Scene {
     card.add(morBar);
 
     card.setDepth(10);
-    this.unitSprites.push({ container: card, unit, hpBar, morBar, countText, side, color });
+    this.unitSprites.push({ container: card, formation, unit, hpBar, morBar, countText, side, color });
+  }
+
+  createBattleFormation(x, y, color, side) {
+    const formation = this.add.container(x, y);
+    const direction = side === 'attacker' ? 1 : -1;
+
+    const mainPole = this.add.rectangle(-42 * direction, 6, 3, 78, 0x38291e);
+    const mainFlag = this.add.triangle(-28 * direction, -22, 0, 0, 0, 26, 34 * direction, 13, color);
+    const subPole = this.add.rectangle(42 * direction, 20, 2, 50, 0x38291e);
+    const subFlag = this.add.triangle(52 * direction, 2, 0, 0, 0, 16, 22 * direction, 8, color, 0.78);
+    formation.add([mainPole, mainFlag, subPole, subFlag]);
+
+    for (const offset of getBattleFormationOffsets(side)) {
+      const body = this.add.rectangle(offset.x, offset.y, 7, 12, 0x29251f);
+      const head = this.add.circle(offset.x, offset.y - 8, 3, 0xd2b182);
+      const shield = this.add.circle(offset.x + 4 * direction, offset.y + 1, 4, color);
+      const spear = this.add.line(offset.x - 5 * direction, offset.y - 10, 0, 0, 11 * direction, -13, 0xb7a06b, 0.8).setLineWidth(1.5);
+      formation.add([spear, body, head, shield]);
+    }
+
+    for (const dust of getBattleDustOffsets()) {
+      formation.add(this.add.ellipse(dust.x, dust.y, 24, 7, 0xc5aa74, dust.alpha));
+    }
+
+    formation.setDepth(8);
+    return formation;
   }
 
   createHUD(W) {
@@ -244,8 +271,14 @@ export class BattleScene extends Phaser.Scene {
         const dx = closestSprite.container.x - sprite.container.x;
         const dy = closestSprite.container.y - sprite.container.y;
         const move = (unit.speed || 3) * 80 * simDt;  // 提速 80→让部队更快交锋
-        sprite.container.x += (dx / closestDist) * move;
-        sprite.container.y += (dy / closestDist) * move;
+        const moveX = (dx / closestDist) * move;
+        const moveY = (dy / closestDist) * move;
+        sprite.container.x += moveX;
+        sprite.container.y += moveY;
+        if (sprite.formation) {
+          sprite.formation.x += moveX;
+          sprite.formation.y += moveY;
+        }
       }
 
       // 攻击
@@ -262,6 +295,18 @@ export class BattleScene extends Phaser.Scene {
           this.tweens.add({
             targets: closestSprite.container,
             alpha: 0.3, duration: 80, yoyo: true, repeat: 1
+          });
+          const clash = this.add.line(
+            closestSprite.container.x, closestSprite.container.y - 6,
+            -16, -10, 16, 10, 0xffe59a, 1
+          ).setLineWidth(3).setDepth(40);
+          this.tweens.add({
+            targets: clash,
+            alpha: 0,
+            scaleX: 1.8,
+            scaleY: 1.8,
+            duration: 220,
+            onComplete: () => clash.destroy(),
           });
         }
 

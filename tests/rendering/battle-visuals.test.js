@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getBattlePalette, getFormationOffsets, getRidgeTrianglePoints } from '../../src/rendering/battle-visuals.js';
+import {
+  getBattlePalette,
+  getFormationOffsets,
+  getRidgeTrianglePoints,
+  getBattleFormationOffsets,
+  getBattleDustOffsets,
+} from '../../src/rendering/battle-visuals.js';
 
 describe('getBattlePalette', () => {
   it('uses a heavy palette for a hill battlefield', () => {
@@ -28,5 +34,18 @@ describe('getRidgeTrianglePoints', () => {
       { x: 220, y: 0 },
       { x: 0, y: 180 },
     ]);
+  });
+});
+
+describe('detailed battlefield visuals', () => {
+  it('creates a fifteen-soldier formation for each side', () => {
+    expect(getBattleFormationOffsets('attacker')).toHaveLength(15);
+    expect(getBattleFormationOffsets('defender')).toHaveLength(15);
+    expect(getBattleFormationOffsets('attacker')[0]).toEqual({ x: -82, y: 32 });
+    expect(getBattleFormationOffsets('defender')[0]).toEqual({ x: 82, y: 32 });
+  });
+
+  it('creates six dust marks for the battle ground', () => {
+    expect(getBattleDustOffsets()).toHaveLength(6);
   });
 });

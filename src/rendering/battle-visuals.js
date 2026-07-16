@@ -47,3 +47,26 @@ export function getRidgeTrianglePoints(side) {
     { x: 430, y: 180 },
   ];
 }
+
+export function getBattleFormationOffsets(side) {
+  const direction = side === 'attacker' ? 1 : -1;
+  return [
+    -82, -64, -46, 46, 64,
+    -76, -58, -40, 40, 58,
+    -70, -52, -34, 34, 52,
+  ].map((x, index) => ({
+    x: x * direction,
+    y: 32 + Math.floor(index / 5) * 15,
+  }));
+}
+
+export function getBattleDustOffsets() {
+  return [
+    { x: -66, y: 58, alpha: 0.18 },
+    { x: -38, y: 64, alpha: 0.14 },
+    { x: -8, y: 60, alpha: 0.20 },
+    { x: 20, y: 66, alpha: 0.12 },
+    { x: 48, y: 59, alpha: 0.18 },
+    { x: 72, y: 65, alpha: 0.10 },
+  ];
+}
